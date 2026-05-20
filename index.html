@@ -26,10 +26,10 @@
   </header>
 
   <main class="main">
-    <!-- Filter tabs -->
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-tab="active" role="tab" data-i18n="tab.active">Active</button>
       <button class="tab" data-tab="upcoming" role="tab" data-i18n="tab.upcoming">Upcoming</button>
+      <button class="tab" data-tab="dismissed" role="tab" data-i18n="tab.dismissed">Dismissed</button>
       <button class="tab" data-tab="all" role="tab" data-i18n="tab.all">All</button>
       <button class="tab" data-tab="done" role="tab" data-i18n="tab.done">Done</button>
     </nav>
@@ -52,7 +52,6 @@
 <!-- ============ ONBOARDING ============ -->
 <div id="onboarding" class="onboard" hidden>
   <div class="onboard-card">
-    <!-- Step 1: welcome -->
     <section class="step is-active" data-step="1">
       <img src="logo.svg" alt="" class="onboard-logo" />
       <h1 class="onboard-title">TooLongAgo</h1>
@@ -60,7 +59,6 @@
       <button class="btn btn-primary btn-block" data-next data-i18n="onboard.start">Get started</button>
     </section>
 
-    <!-- Step 2: language -->
     <section class="step" data-step="2">
       <h2 class="step-title" data-i18n="onboard.langTitle">Choose your language</h2>
       <p class="step-sub" data-i18n="onboard.langSub">You can change this any time in Settings.</p>
@@ -71,19 +69,17 @@
       </div>
     </section>
 
-    <!-- Step 3: categories -->
     <section class="step" data-step="3">
-      <h2 class="step-title" data-i18n="onboard.catTitle">Warning levels</h2>
+      <h2 class="step-title" data-i18n="onboard.catTitle">Severity levels</h2>
       <p class="step-sub" data-i18n="onboard.catSub">When a task is overdue, these are how seriously we'll flag it. Tweak the names, colors, or thresholds, or use the defaults.</p>
-      <div id="onboardCategories" class="cat-list"></div>
-      <button class="btn btn-ghost btn-block" id="onboardAddCat" data-i18n="cat.add">+ Add level</button>
+      <div id="onboardSeverities" class="cat-list"></div>
+      <button class="btn btn-ghost btn-block" id="onboardAddSeverity" data-i18n="severity.add">+ Add level</button>
       <div class="step-actions">
         <button class="btn btn-ghost" data-prev data-i18n="back">Back</button>
         <button class="btn btn-primary" data-next data-i18n="next">Next</button>
       </div>
     </section>
 
-    <!-- Step 4: notifications -->
     <section class="step" data-step="4">
       <h2 class="step-title" data-i18n="onboard.notifTitle">Enable notifications?</h2>
       <p class="step-sub" data-i18n="onboard.notifSub">We'll quietly let you know when something needs your attention. You can change this later.</p>
@@ -99,7 +95,6 @@
       </div>
     </section>
 
-    <!-- Step 5: ready -->
     <section class="step" data-step="5">
       <div class="celebrate" aria-hidden="true">
         <svg viewBox="0 0 64 64" width="72" height="72"><circle cx="32" cy="32" r="28" fill="#28C68A" opacity="0.15"/><path d="M20 32 l9 9 l16 -18" stroke="#28C68A" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -109,7 +104,6 @@
       <button class="btn btn-primary btn-block" id="finishOnboarding" data-i18n="onboard.finish">Add my first task</button>
     </section>
 
-    <!-- Step indicators -->
     <div class="dots" id="onboardDots"></div>
   </div>
 </div>
@@ -132,10 +126,17 @@
       </section>
 
       <section class="setting">
-        <h3 data-i18n="settings.categories">Warning levels</h3>
-        <p class="muted small" data-i18n="settings.categoriesHint">Thresholds are relative to the task's interval. 100% = exactly due.</p>
-        <div id="settingsCategories" class="cat-list"></div>
-        <button class="btn btn-ghost btn-block" id="settingsAddCat" data-i18n="cat.add">+ Add level</button>
+        <h3 data-i18n="settings.severities">Severity levels</h3>
+        <p class="muted small" data-i18n="settings.severitiesHint">Thresholds are relative to the task's interval. 100% = exactly due.</p>
+        <div id="settingsSeverities" class="cat-list"></div>
+        <button class="btn btn-ghost btn-block" id="settingsAddSeverity" data-i18n="severity.add">+ Add level</button>
+      </section>
+
+      <section class="setting">
+        <h3 data-i18n="settings.categories">Categories</h3>
+        <p class="muted small" data-i18n="settings.categoriesHint">Group tasks like "Health" or "Home". Color and icon are optional.</p>
+        <div id="settingsCategories" class="category-list"></div>
+        <button class="btn btn-ghost btn-block" id="settingsAddCategory" data-i18n="category.add">+ Add category</button>
       </section>
 
       <section class="setting">
@@ -208,6 +209,13 @@
       </label>
 
       <label class="field">
+        <span data-i18n="task.category">Category (optional)</span>
+        <select id="taskCategory">
+          <option value="" data-i18n="task.noCategory">No category</option>
+        </select>
+      </label>
+
+      <label class="field">
         <span data-i18n="task.notes">Notes (optional)</span>
         <textarea id="taskNotes" rows="2" maxlength="280"></textarea>
       </label>
@@ -220,6 +228,80 @@
       </div>
     </form>
   </div>
+</div>
+
+<!-- ============ CONFIRM DIALOG ============ -->
+<div id="confirmDialog" class="modal" hidden>
+  <div class="modal-scrim" data-cancel></div>
+  <div class="modal-card modal-card-sm" role="dialog" aria-label="Confirm">
+    <div class="modal-body">
+      <h3 id="confirmTitle" class="dlg-title"></h3>
+      <p id="confirmBody" class="muted dlg-body"></p>
+      <div class="modal-actions">
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost" data-cancel data-i18n="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmOk" data-i18n="confirm.ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DISMISS DIALOG ============ -->
+<div id="dismissDialog" class="modal" hidden>
+  <div class="modal-scrim" data-cancel></div>
+  <div class="modal-card modal-card-sm" role="dialog" aria-label="Dismiss for...">
+    <div class="modal-body">
+      <h3 class="dlg-title" data-i18n="dismiss.title">Dismiss for how long?</h3>
+      <p class="muted dlg-body" data-i18n="dismiss.body">It'll come back when the time is up.</p>
+      <div id="dismissOptions" class="opt-list"></div>
+      <fieldset class="field field-row" id="dismissCustomRow" hidden>
+        <legend data-i18n="dismiss.customLabel">Custom duration</legend>
+        <input type="number" id="dismissAmount" min="1" step="1" value="1" />
+        <select id="dismissUnit">
+          <option value="minute" data-i18n="unit.minute">minute(s)</option>
+          <option value="hour" data-i18n="unit.hour">hour(s)</option>
+          <option value="day" selected data-i18n="unit.day">day(s)</option>
+          <option value="week" data-i18n="unit.week">week(s)</option>
+        </select>
+      </fieldset>
+      <div class="modal-actions">
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost" data-cancel data-i18n="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="dismissOk" data-i18n="dismiss.confirm">Dismiss</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ICON PICKER ============ -->
+<div id="iconPicker" class="modal" hidden>
+  <div class="modal-scrim" data-cancel></div>
+  <div class="modal-card modal-card-sm" role="dialog" aria-label="Pick an icon">
+    <div class="modal-body">
+      <h3 class="dlg-title" data-i18n="icon.pick">Pick an icon</h3>
+      <div id="iconGrid" class="icon-grid"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="iconClear" data-i18n="icon.none">No icon</button>
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost" data-cancel data-i18n="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CELEBRATION ============ -->
+<div id="celebrate" class="celebrate-overlay" hidden aria-hidden="true">
+  <div class="celebrate-burst">
+    <svg viewBox="0 0 120 120" width="120" height="120" class="celebrate-check">
+      <circle cx="60" cy="60" r="54" class="celebrate-ring"/>
+      <path d="M36 62 l16 16 l32 -36" class="celebrate-tick" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="8"/>
+    </svg>
+    <div id="celebrateMsg" class="celebrate-msg"></div>
+  </div>
+  <span class="confetti c1"></span><span class="confetti c2"></span><span class="confetti c3"></span>
+  <span class="confetti c4"></span><span class="confetti c5"></span><span class="confetti c6"></span>
+  <span class="confetti c7"></span><span class="confetti c8"></span><span class="confetti c9"></span>
+  <span class="confetti c10"></span><span class="confetti c11"></span><span class="confetti c12"></span>
 </div>
 
 <!-- ============ TOAST ============ -->

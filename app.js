@@ -1,8 +1,11 @@
 /* ============================================================
    TooLongAgo — app logic
-   - localStorage persistence
+   - localStorage persistence (with migration)
    - Onboarding wizard
-   - Tasks (one-time / recurring), warning categories, dismiss/done
+   - Tasks (one-time / recurring), severities, categories
+   - Confirm + dismiss-duration dialogs
+   - Category bulk actions, mute, dismissed tab
+   - Rewarding completion animation
    - i18n (en + da), easy to extend
    - Browser notifications
    ============================================================ */
@@ -10,14 +13,16 @@
 (() => {
   'use strict';
 
-  /* ---------- i18n ---------- */
+  /* ============================================================
+     i18n
+     ============================================================ */
   const I18N = {
     en: {
-      name: "English",
-      native: "English",
+      name: "English", native: "English",
       // tabs
       "tab.active": "Active",
       "tab.upcoming": "Upcoming",
+      "tab.dismissed": "Dismissed",
       "tab.all": "All",
       "tab.done": "Done",
       // empty
@@ -26,15 +31,19 @@
       "empty.cta": "Add a task",
       "empty.activeTitle": "All caught up",
       "empty.activeBody": "No warnings right now. Nice work.",
+      "empty.upcomingTitle": "Nothing upcoming",
+      "empty.upcomingBody": "Tasks that aren't due yet will live here.",
+      "empty.dismissedTitle": "Nothing dismissed",
+      "empty.dismissedBody": "Dismissed tasks appear here until they come back.",
       "empty.doneTitle": "Nothing done yet",
-      "empty.doneBody": "Mark a task as done and it'll show up here.",
+      "empty.doneBody": "Tick something off — it'll show up here.",
       // onboarding
       "onboard.welcomeSub": "Gentle nudges for the things you keep meaning to do.",
       "onboard.start": "Get started",
       "onboard.langTitle": "Choose your language",
       "onboard.langSub": "You can change this any time in Settings.",
-      "onboard.catTitle": "Warning levels",
-      "onboard.catSub": "When a task is overdue, this is how seriously we'll flag it. Tweak the names, colors, or thresholds, or stick with the defaults.",
+      "onboard.catTitle": "Severity levels",
+      "onboard.catSub": "When a task is overdue, these are how seriously we'll flag it. Tweak the names, colors, or thresholds, or use the defaults.",
       "onboard.notifTitle": "Enable notifications?",
       "onboard.notifSub": "We'll quietly let you know when something needs your attention. You can change this later.",
       "onboard.notifSkip": "Maybe later",
@@ -45,8 +54,10 @@
       // settings
       "settings.title": "Settings",
       "settings.language": "Language",
-      "settings.categories": "Warning levels",
-      "settings.categoriesHint": "Thresholds are relative to the task's interval. 100% = exactly due.",
+      "settings.severities": "Severity levels",
+      "settings.severitiesHint": "Thresholds are relative to the task's interval. 100% = exactly due.",
+      "settings.categories": "Categories",
+      "settings.categoriesHint": "Group tasks like \"Health\" or \"Home\". Color and icon are optional.",
       "settings.notifications": "Notifications",
       "settings.notifEnable": "Enable browser notifications",
       "settings.theme": "Appearance",
@@ -64,6 +75,8 @@
       "task.name": "What is it?",
       "task.remindAfter": "Remind me after",
       "task.recurring": "Recurring (repeats after I mark it done)",
+      "task.category": "Category (optional)",
+      "task.noCategory": "No category",
       "task.notes": "Notes (optional)",
       "task.delete": "Delete",
       // units
@@ -73,17 +86,27 @@
       "unit.week": "week(s)",
       "unit.month": "month(s)",
       "unit.year": "year(s)",
+      // severities
+      "severity.add": "+ Add level",
+      "severity.reminder": "Reminder",
+      "severity.warning": "Warning",
+      "severity.critical": "Critical",
       // categories
-      "cat.add": "+ Add level",
-      "cat.reminder": "Reminder",
-      "cat.warning": "Warning",
-      "cat.critical": "Critical",
+      "category.add": "+ Add category",
+      "category.unnamed": "Untitled category",
+      "category.muted": "Muted",
+      "category.mute": "Mute",
+      "category.unmute": "Unmute",
+      "category.bulkDoneAll": "Mark all done",
+      "category.bulkDismissAll": "Dismiss all",
+      "category.icon": "Icon",
+      "category.color": "Color",
+      "category.name": "Name",
       // status / labels
       "status.dueIn": "due in",
       "status.overdueBy": "overdue by",
       "status.dueNow": "due now",
-      "status.never": "never marked done",
-      "status.lastDone": "last done",
+      "status.dismissedFor": "dismissed for",
       "status.upcoming": "Upcoming",
       "status.oneTime": "one-time",
       "status.recurring": "recurring",
@@ -92,30 +115,57 @@
       "action.markDone": "Mark done",
       "action.dismiss": "Dismiss",
       "action.edit": "Edit",
-      "action.snooze": "Snooze",
-      "action.undo": "Undo",
+      "action.undismiss": "Undismiss",
       // toasts
       "toast.created": "Task created",
       "toast.updated": "Task updated",
       "toast.deleted": "Task deleted",
       "toast.markedDone": "Marked done",
       "toast.dismissed": "Dismissed",
+      "toast.undismissed": "Back in the list",
       "toast.imported": "Data imported",
       "toast.exported": "Exported",
       "toast.reset": "Everything reset",
       "toast.notifEnabled": "Notifications enabled",
       "toast.notifBlocked": "Notifications blocked in browser",
+      "toast.bulkDone": "Marked {n} done",
+      "toast.bulkDismiss": "Dismissed {n} tasks",
+      "toast.muted": "Category muted",
+      "toast.unmuted": "Category unmuted",
+      // dialogs
+      "confirm.ok": "Confirm",
+      "confirm.markDoneTitle": "Mark this done?",
+      "confirm.markDoneBody": "We'll reset the timer for \"{name}\".",
+      "confirm.markDoneOk": "Yes, done!",
+      "confirm.deleteTitle": "Delete this task?",
+      "confirm.deleteBody": "This can't be undone.",
+      "confirm.deleteOk": "Delete",
+      "confirm.resetTitle": "Reset everything?",
+      "confirm.resetBody": "All your tasks, categories and settings will be deleted.",
+      "confirm.resetOk": "Reset all",
+      "confirm.bulkDoneTitle": "Mark all done?",
+      "confirm.bulkDoneBody": "{n} task(s) in \"{cat}\" will be reset.",
+      "confirm.bulkDismissTitle": "Dismiss all in \"{cat}\"?",
+      "confirm.bulkDismissBody": "{n} task(s) will be dismissed for the chosen duration.",
+      "dismiss.title": "Dismiss for how long?",
+      "dismiss.body": "It'll come back when the time is up.",
+      "dismiss.confirm": "Dismiss",
+      "dismiss.untilDue": "Until next due time",
+      "dismiss.1h": "1 hour",
+      "dismiss.1d": "1 day",
+      "dismiss.1w": "1 week",
+      "dismiss.custom": "Custom…",
+      "dismiss.customLabel": "Custom duration",
+      // icon picker
+      "icon.pick": "Pick an icon",
+      "icon.none": "No icon",
       // misc
       "back": "Back",
       "next": "Next",
       "save": "Save",
       "cancel": "Cancel",
-      "confirm.reset": "This will delete all your tasks and settings. Continue?",
-      "confirm.delete": "Delete this task?",
       // time relative
       "time.now": "now",
-      "time.ago": "ago",
-      "time.in": "in",
       "time.second": "second",
       "time.seconds": "seconds",
       "time.minute": "minute",
@@ -133,12 +183,21 @@
       // notif
       "notif.title": "TooLongAgo",
       "notif.bodyOne": "{name} is now {level}.",
+      // celebrations — rotated through
+      "celebrate.0": "Nice work!",
+      "celebrate.1": "Done!",
+      "celebrate.2": "Keep it up!",
+      "celebrate.3": "One more in the bag.",
+      "celebrate.4": "Look at you go.",
+      "celebrate.5": "Tiny win, big deal.",
+      "celebrate.6": "Future-you says thanks.",
+      "celebrate.streak": "{n} in a row!",
     },
     da: {
-      name: "Danish",
-      native: "Dansk",
+      name: "Danish", native: "Dansk",
       "tab.active": "Aktive",
       "tab.upcoming": "Kommende",
+      "tab.dismissed": "Udskudte",
       "tab.all": "Alle",
       "tab.done": "Færdige",
       "empty.title": "Intet her endnu",
@@ -146,13 +205,17 @@
       "empty.cta": "Tilføj en opgave",
       "empty.activeTitle": "Du er ajour",
       "empty.activeBody": "Ingen advarsler lige nu. Godt gået.",
+      "empty.upcomingTitle": "Ingen kommende",
+      "empty.upcomingBody": "Opgaver, der endnu ikke er forfaldne, vises her.",
+      "empty.dismissedTitle": "Intet udskudt",
+      "empty.dismissedBody": "Udskudte opgaver vises her, indtil de vender tilbage.",
       "empty.doneTitle": "Intet er færdigt endnu",
-      "empty.doneBody": "Marker en opgave som færdig, så vises den her.",
+      "empty.doneBody": "Marker noget som færdigt — så vises det her.",
       "onboard.welcomeSub": "Venlige skub til de ting, du bliver ved med at glemme.",
       "onboard.start": "Kom i gang",
       "onboard.langTitle": "Vælg sprog",
       "onboard.langSub": "Du kan altid ændre det i indstillinger.",
-      "onboard.catTitle": "Advarselsniveauer",
+      "onboard.catTitle": "Alvorsniveauer",
       "onboard.catSub": "Når en opgave er forsinket, er det sådan, vi flagger den. Tilpas navne, farver og grænser — eller behold standarderne.",
       "onboard.notifTitle": "Aktiver notifikationer?",
       "onboard.notifSub": "Vi giver dig diskret besked, når noget kræver din opmærksomhed. Du kan ændre det senere.",
@@ -163,8 +226,10 @@
       "onboard.finish": "Tilføj min første opgave",
       "settings.title": "Indstillinger",
       "settings.language": "Sprog",
-      "settings.categories": "Advarselsniveauer",
-      "settings.categoriesHint": "Grænserne er i forhold til opgavens interval. 100 % = præcis forfalden.",
+      "settings.severities": "Alvorsniveauer",
+      "settings.severitiesHint": "Grænserne er i forhold til opgavens interval. 100 % = præcis forfalden.",
+      "settings.categories": "Kategorier",
+      "settings.categoriesHint": "Grupper opgaver som \"Sundhed\" eller \"Hjem\". Farve og ikon er valgfrie.",
       "settings.notifications": "Notifikationer",
       "settings.notifEnable": "Slå browser-notifikationer til",
       "settings.theme": "Udseende",
@@ -181,6 +246,8 @@
       "task.name": "Hvad drejer det sig om?",
       "task.remindAfter": "Mind mig om det efter",
       "task.recurring": "Gentages (starter forfra når jeg markerer som færdig)",
+      "task.category": "Kategori (valgfri)",
+      "task.noCategory": "Ingen kategori",
       "task.notes": "Noter (valgfrit)",
       "task.delete": "Slet",
       "unit.minute": "minut(ter)",
@@ -189,43 +256,77 @@
       "unit.week": "uge(r)",
       "unit.month": "måned(er)",
       "unit.year": "år",
-      "cat.add": "+ Tilføj niveau",
-      "cat.reminder": "Påmindelse",
-      "cat.warning": "Advarsel",
-      "cat.critical": "Kritisk",
+      "severity.add": "+ Tilføj niveau",
+      "severity.reminder": "Påmindelse",
+      "severity.warning": "Advarsel",
+      "severity.critical": "Kritisk",
+      "category.add": "+ Tilføj kategori",
+      "category.unnamed": "Unavngivet kategori",
+      "category.muted": "Lyd slået fra",
+      "category.mute": "Slå lyd fra",
+      "category.unmute": "Slå lyd til",
+      "category.bulkDoneAll": "Marker alle færdige",
+      "category.bulkDismissAll": "Udskyd alle",
+      "category.icon": "Ikon",
+      "category.color": "Farve",
+      "category.name": "Navn",
       "status.dueIn": "forfalden om",
       "status.overdueBy": "forsinket med",
       "status.dueNow": "forfalden nu",
-      "status.never": "aldrig markeret færdig",
-      "status.lastDone": "sidst gjort",
+      "status.dismissedFor": "udskudt i",
       "status.upcoming": "Kommende",
       "status.oneTime": "engangs",
       "status.recurring": "gentagende",
       "status.done": "Færdig",
       "action.markDone": "Marker færdig",
-      "action.dismiss": "Afvis",
+      "action.dismiss": "Udskyd",
       "action.edit": "Rediger",
-      "action.snooze": "Udskyd",
-      "action.undo": "Fortryd",
+      "action.undismiss": "Fortryd udskydning",
       "toast.created": "Opgave oprettet",
       "toast.updated": "Opgave opdateret",
       "toast.deleted": "Opgave slettet",
       "toast.markedDone": "Markeret færdig",
-      "toast.dismissed": "Afvist",
+      "toast.dismissed": "Udskudt",
+      "toast.undismissed": "Tilbage på listen",
       "toast.imported": "Data importeret",
       "toast.exported": "Eksporteret",
       "toast.reset": "Alt nulstillet",
       "toast.notifEnabled": "Notifikationer aktiveret",
       "toast.notifBlocked": "Notifikationer blokeret i browseren",
+      "toast.bulkDone": "{n} markeret færdige",
+      "toast.bulkDismiss": "{n} opgaver udskudt",
+      "toast.muted": "Kategori dæmpet",
+      "toast.unmuted": "Kategori aktiv igen",
+      "confirm.ok": "Bekræft",
+      "confirm.markDoneTitle": "Marker som færdig?",
+      "confirm.markDoneBody": "Vi nulstiller uret for \"{name}\".",
+      "confirm.markDoneOk": "Ja, færdig!",
+      "confirm.deleteTitle": "Slet denne opgave?",
+      "confirm.deleteBody": "Dette kan ikke fortrydes.",
+      "confirm.deleteOk": "Slet",
+      "confirm.resetTitle": "Nulstil alt?",
+      "confirm.resetBody": "Alle dine opgaver, kategorier og indstillinger slettes.",
+      "confirm.resetOk": "Nulstil alt",
+      "confirm.bulkDoneTitle": "Marker alle færdige?",
+      "confirm.bulkDoneBody": "{n} opgave(r) i \"{cat}\" nulstilles.",
+      "confirm.bulkDismissTitle": "Udskyd alle i \"{cat}\"?",
+      "confirm.bulkDismissBody": "{n} opgave(r) udskydes i den valgte varighed.",
+      "dismiss.title": "Udskyd hvor længe?",
+      "dismiss.body": "Den vender tilbage, når tiden er gået.",
+      "dismiss.confirm": "Udskyd",
+      "dismiss.untilDue": "Indtil næste forfald",
+      "dismiss.1h": "1 time",
+      "dismiss.1d": "1 dag",
+      "dismiss.1w": "1 uge",
+      "dismiss.custom": "Brugerdefineret…",
+      "dismiss.customLabel": "Varighed",
+      "icon.pick": "Vælg et ikon",
+      "icon.none": "Intet ikon",
       "back": "Tilbage",
       "next": "Videre",
       "save": "Gem",
       "cancel": "Annuller",
-      "confirm.reset": "Dette sletter alle dine opgaver og indstillinger. Fortsæt?",
-      "confirm.delete": "Slet denne opgave?",
       "time.now": "nu",
-      "time.ago": "siden",
-      "time.in": "om",
       "time.second": "sekund",
       "time.seconds": "sekunder",
       "time.minute": "minut",
@@ -242,17 +343,27 @@
       "time.years": "år",
       "notif.title": "TooLongAgo",
       "notif.bodyOne": "{name} er nu {level}.",
+      "celebrate.0": "Godt gået!",
+      "celebrate.1": "Færdig!",
+      "celebrate.2": "Bliv ved!",
+      "celebrate.3": "Endnu en i kassen.",
+      "celebrate.4": "Se lige dig.",
+      "celebrate.5": "Lille sejr, stor sag.",
+      "celebrate.6": "Fremtidige-dig siger tak.",
+      "celebrate.streak": "{n} i træk!",
     },
   };
 
   const t = (key, vars) => {
     const dict = I18N[state.settings.lang] || I18N.en;
     let s = dict[key] || I18N.en[key] || key;
-    if (vars) for (const k in vars) s = s.replace(`{${k}}`, vars[k]);
+    if (vars) for (const k in vars) s = s.replace(new RegExp(`\\{${k}\\}`, "g"), vars[k]);
     return s;
   };
 
-  /* ---------- Constants ---------- */
+  /* ============================================================
+     Constants
+     ============================================================ */
   const STORAGE_KEY = "toolongago.v1";
 
   const UNIT_MS = {
@@ -260,17 +371,27 @@
     hour:   60 * 60 * 1000,
     day:    24 * 60 * 60 * 1000,
     week:   7 * 24 * 60 * 60 * 1000,
-    month:  30 * 24 * 60 * 60 * 1000,   // approx
-    year:   365 * 24 * 60 * 60 * 1000,  // approx
+    month:  30 * 24 * 60 * 60 * 1000,
+    year:   365 * 24 * 60 * 60 * 1000,
   };
 
-  const DEFAULT_CATEGORIES = () => ([
-    { id: cryptoId(), key: "reminder", labelKey: "cat.reminder", color: "#3FB48A", threshold: 80  },
-    { id: cryptoId(), key: "warning",  labelKey: "cat.warning",  color: "#F2A93B", threshold: 100 },
-    { id: cryptoId(), key: "critical", labelKey: "cat.critical", color: "#E5484D", threshold: 150 },
+  const DEFAULT_SEVERITIES = () => ([
+    { id: cryptoId(), key: "reminder", labelKey: "severity.reminder", color: "#3FB48A", threshold: 80  },
+    { id: cryptoId(), key: "warning",  labelKey: "severity.warning",  color: "#F2A93B", threshold: 100 },
+    { id: cryptoId(), key: "critical", labelKey: "severity.critical", color: "#E5484D", threshold: 150 },
   ]);
 
-  /* ---------- Helpers ---------- */
+  const ICON_SET = [
+    "💊","💉","🩺","🦷","❤️","🧘","🏃","🚴","🏋️","💪",
+    "🍎","🥗","💧","☕","🍽️",
+    "🧹","🧺","🪴","🌱","🏠","🛏️","🚿","🧴",
+    "💼","📚","✏️","🎯","📞","✉️","💰","🛠️","⚙️",
+    "🐾","🚗","🎵","🎨","☀️","🌙","✨","⭐","🎁","🧠",
+  ];
+
+  /* ============================================================
+     Helpers
+     ============================================================ */
   function cryptoId() {
     if (window.crypto?.randomUUID) return crypto.randomUUID();
     return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -286,15 +407,14 @@
     if (!span) return 0;
     return ((now - base) / span) * 100;
   }
-  // Returns the category object that applies to this task at the given pct, or null if below the lowest.
-  function activeCategory(pct, categories) {
-    const sorted = [...categories].sort((a, b) => a.threshold - b.threshold);
+  function activeSeverity(pct, severities) {
+    const sorted = [...severities].sort((a, b) => a.threshold - b.threshold);
     let active = null;
-    for (const c of sorted) if (pct >= c.threshold) active = c;
+    for (const s of sorted) if (pct >= s.threshold) active = s;
     return active;
   }
-  function maxThreshold(categories) {
-    return categories.reduce((m, c) => Math.max(m, c.threshold), 100);
+  function maxThreshold(severities) {
+    return severities.reduce((m, c) => Math.max(m, c.threshold), 100);
   }
   function fmtHuman(ms) {
     const abs = Math.abs(ms);
@@ -333,27 +453,50 @@
   function $(sel, root = document) { return root.querySelector(sel); }
   function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
-  /* ---------- State ---------- */
+  /* ============================================================
+     State + migration
+     ============================================================ */
   const defaultState = () => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
     onboardingDone: false,
     settings: {
       lang: (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en",
-      theme: "auto",     // auto | light | dark
+      theme: "auto",
       notifications: false,
     },
-    categories: DEFAULT_CATEGORIES(),
-    tasks: [],            // {id, name, notes, amount, unit, recurring, createdAt, lastDoneAt, dismissedUntil, lastNotifiedCat, doneHistory, done(one-time)}
+    severities: DEFAULT_SEVERITIES(),
+    categories: [],   // user-defined: { id, name, color?, icon?, muted }
+    tasks: [],
     activeTab: "active",
+    stats: { totalDone: 0 },
   });
 
-  let state = load() || defaultState();
+  function migrate(loaded) {
+    if (!loaded) return null;
+    // v1 → v2: rename `categories` (severity levels) → `severities`, add `categories` empty array
+    if (loaded.schemaVersion === 1 || (loaded.categories && !loaded.severities)) {
+      loaded.severities = loaded.categories;
+      loaded.categories = [];
+      loaded.schemaVersion = 2;
+    }
+    // Defensive defaults
+    loaded.severities = loaded.severities || DEFAULT_SEVERITIES();
+    loaded.categories = loaded.categories || [];
+    loaded.stats = loaded.stats || { totalDone: 0 };
+    loaded.tasks = loaded.tasks || [];
+    // Ensure category fields exist on tasks
+    loaded.tasks.forEach(tk => {
+      if (tk.categoryId === undefined) tk.categoryId = null;
+      tk.doneHistory = tk.doneHistory || [];
+    });
+    return loaded;
+  }
 
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      return JSON.parse(raw);
+      return migrate(JSON.parse(raw));
     } catch (e) {
       console.warn("Failed to load state:", e);
       return null;
@@ -364,18 +507,22 @@
     catch (e) { console.warn("Save failed:", e); }
   }
 
-  /* ---------- Translate the static DOM ---------- */
+  let state = load() || defaultState();
+
+  /* ============================================================
+     Translate the static DOM
+     ============================================================ */
   function applyI18n() {
     $$("[data-i18n]").forEach(n => {
       const key = n.getAttribute("data-i18n");
-      // For options, only set textContent
-      if (n.tagName === "OPTION") n.textContent = t(key);
-      else n.textContent = t(key);
+      n.textContent = t(key);
     });
     document.documentElement.lang = state.settings.lang;
   }
 
-  /* ---------- Theme ---------- */
+  /* ============================================================
+     Theme
+     ============================================================ */
   function applyTheme() {
     document.documentElement.setAttribute("data-theme", state.settings.theme);
   }
@@ -405,12 +552,12 @@
     $$("[data-next]", onboarding).forEach(b => b.onclick = () => showStep(currentStep + 1));
     $$("[data-prev]", onboarding).forEach(b => b.onclick = () => showStep(currentStep - 1));
 
-    renderLangPicker($("#onboardLang"), () => renderLangPicker($("#onboardLang"), () => {}));
-    renderCategoryEditor($("#onboardCategories"));
-    $("#onboardAddCat").onclick = () => {
-      state.categories.push({ id: cryptoId(), key: "custom", labelKey: null, label: "Custom", color: "#9B8CFF", threshold: 120 });
+    renderLangPicker($("#onboardLang"));
+    renderSeverityEditor($("#onboardSeverities"));
+    $("#onboardAddSeverity").onclick = () => {
+      state.severities.push({ id: cryptoId(), key: "custom", labelKey: null, label: "Custom", color: "#9B8CFF", threshold: 120 });
       save();
-      renderCategoryEditor($("#onboardCategories"));
+      renderSeverityEditor($("#onboardSeverities"));
     };
 
     $("#onboardEnableNotif").onclick = async () => {
@@ -429,9 +576,10 @@
   }
 
   /* ============================================================
-     LANGUAGE PICKER (used in onboarding + settings)
+     LANGUAGE PICKER
      ============================================================ */
-  function renderLangPicker(container, onChange) {
+  function renderLangPicker(container) {
+    if (!container) return;
     container.innerHTML = "";
     Object.keys(I18N).forEach(code => {
       const meta = I18N[code];
@@ -442,13 +590,12 @@
           state.settings.lang = code;
           save();
           applyI18n();
-          // Re-render anything that needs translation
-          renderLangPicker($("#onboardLang"), onChange);
-          renderLangPicker($("#settingsLang"), onChange);
-          renderCategoryEditor($("#onboardCategories"));
+          renderLangPicker($("#onboardLang"));
+          renderLangPicker($("#settingsLang"));
+          renderSeverityEditor($("#onboardSeverities"));
+          renderSeverityEditor($("#settingsSeverities"));
           renderCategoryEditor($("#settingsCategories"));
           render();
-          if (onChange) onChange();
         }
       },
         el("strong", {}, meta.native),
@@ -459,60 +606,155 @@
   }
 
   /* ============================================================
-     CATEGORY EDITOR
+     SEVERITY EDITOR
      ============================================================ */
-  function categoryLabel(cat) {
-    if (cat.labelKey) return t(cat.labelKey);
-    return cat.label || "Custom";
+  function severityLabel(sev) {
+    if (sev.labelKey) return t(sev.labelKey);
+    return sev.label || "Custom";
   }
-  function renderCategoryEditor(container) {
+  function renderSeverityEditor(container) {
+    if (!container) return;
     container.innerHTML = "";
-    // Sort by threshold ascending for editing too
-    const sorted = [...state.categories].sort((a, b) => a.threshold - b.threshold);
+    const sorted = [...state.severities].sort((a, b) => a.threshold - b.threshold);
 
-    sorted.forEach(cat => {
+    sorted.forEach(sev => {
       const row = el("div", { class: "cat-row" });
 
-      // Color
-      const color = el("input", { type: "color", value: cat.color });
-      color.oninput = (e) => { cat.color = e.target.value; save(); render(); };
+      const color = el("input", { type: "color", value: sev.color });
+      color.oninput = (e) => { sev.color = e.target.value; save(); render(); };
       row.appendChild(color);
 
-      // Label
-      const label = el("input", { type: "text", value: categoryLabel(cat), maxlength: 24 });
+      const label = el("input", { type: "text", value: severityLabel(sev), maxlength: 24 });
       label.oninput = (e) => {
-        cat.label = e.target.value;
-        cat.labelKey = null; // becomes user-customized
+        sev.label = e.target.value;
+        sev.labelKey = null;
         save();
         render();
       };
       row.appendChild(label);
 
-      // Threshold (%)
       const pctWrap = el("div", { class: "pct-wrap" });
-      const num = el("input", { type: "number", min: 1, max: 1000, step: 1, value: cat.threshold });
+      const num = el("input", { type: "number", min: 1, max: 1000, step: 1, value: sev.threshold });
       num.oninput = (e) => {
         const v = parseInt(e.target.value, 10);
-        if (!isNaN(v) && v > 0) { cat.threshold = v; save(); render(); }
+        if (!isNaN(v) && v > 0) { sev.threshold = v; save(); render(); }
       };
       pctWrap.appendChild(num);
       pctWrap.appendChild(el("span", {}, "%"));
       row.appendChild(pctWrap);
 
-      // Delete
-      const del = el("button", { class: "del", type: "button", title: "Delete", "aria-label": "Delete" },
-        (() => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox","0 0 24 24"); s.setAttribute("width","16"); s.setAttribute("height","16"); s.innerHTML = '<path fill="currentColor" d="M6 7h12l-1 13H7L6 7Zm3-3h6v2H9V4Z"/>'; return s; })()
-      );
+      const del = el("button", { class: "del", type: "button", title: "Delete", "aria-label": "Delete", html: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M6 7h12l-1 13H7L6 7Zm3-3h6v2H9V4Z"/></svg>' });
       del.onclick = () => {
-        if (state.categories.length <= 1) return;
-        state.categories = state.categories.filter(c => c.id !== cat.id);
+        if (state.severities.length <= 1) return;
+        state.severities = state.severities.filter(c => c.id !== sev.id);
         save();
-        renderCategoryEditor(container);
+        renderSeverityEditor(container);
         render();
       };
       row.appendChild(del);
 
       container.appendChild(row);
+    });
+  }
+
+  /* ============================================================
+     CATEGORY EDITOR  (user-defined task categories)
+     ============================================================ */
+  function categoryName(cat) {
+    return (cat.name && cat.name.trim()) || t("category.unnamed");
+  }
+  function renderCategoryEditor(container) {
+    if (!container) return;
+    container.innerHTML = "";
+
+    state.categories.forEach(cat => {
+      const card = el("div", { class: "category-card" + (cat.muted ? " is-muted" : "") });
+
+      // Header row: icon + name + color + delete
+      const head = el("div", { class: "category-head" });
+
+      const iconBtn = el("button", {
+        class: "icon-pick-btn",
+        type: "button",
+        title: t("category.icon"),
+        "aria-label": t("category.icon"),
+      }, cat.icon || "＋");
+      if (cat.color) iconBtn.style.background = cat.color + "22";
+      iconBtn.onclick = () => openIconPicker(icon => {
+        cat.icon = icon || null;
+        save();
+        renderCategoryEditor(container);
+        render();
+      }, cat.icon);
+      head.appendChild(iconBtn);
+
+      const nameInput = el("input", {
+        type: "text",
+        value: cat.name || "",
+        placeholder: t("category.name"),
+        maxlength: 32,
+      });
+      nameInput.oninput = (e) => {
+        cat.name = e.target.value;
+        save();
+        render();
+        renderTaskCategoryOptions(); // keep modal in sync
+      };
+      head.appendChild(nameInput);
+
+      const color = el("input", { type: "color", value: cat.color || "#9B8CFF", title: t("category.color") });
+      color.oninput = (e) => { cat.color = e.target.value; save(); renderCategoryEditor(container); render(); };
+      head.appendChild(color);
+
+      const del = el("button", { class: "del", type: "button", title: "Delete", "aria-label": "Delete", html: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M6 7h12l-1 13H7L6 7Zm3-3h6v2H9V4Z"/></svg>' });
+      del.onclick = () => {
+        // Unassign from tasks
+        state.tasks.forEach(tk => { if (tk.categoryId === cat.id) tk.categoryId = null; });
+        state.categories = state.categories.filter(c => c.id !== cat.id);
+        save();
+        renderCategoryEditor(container);
+        renderTaskCategoryOptions();
+        render();
+      };
+      head.appendChild(del);
+
+      card.appendChild(head);
+
+      // Action row
+      const actions = el("div", { class: "category-actions" });
+
+      const muteBtn = el("button", {
+        class: "btn btn-ghost btn-sm",
+        type: "button",
+        onclick: () => {
+          cat.muted = !cat.muted;
+          save();
+          renderCategoryEditor(container);
+          render();
+          toast(t(cat.muted ? "toast.muted" : "toast.unmuted"));
+        },
+      }, cat.muted ? t("category.unmute") : t("category.mute"));
+      actions.appendChild(muteBtn);
+
+      const doneAll = el("button", {
+        class: "btn btn-ghost btn-sm",
+        type: "button",
+        onclick: () => bulkMarkDoneForCategory(cat),
+      }, t("category.bulkDoneAll"));
+      actions.appendChild(doneAll);
+
+      const dismissAll = el("button", {
+        class: "btn btn-ghost btn-sm",
+        type: "button",
+        onclick: () => bulkDismissForCategory(cat),
+      }, t("category.bulkDismissAll"));
+      actions.appendChild(dismissAll);
+
+      const count = state.tasks.filter(tk => tk.categoryId === cat.id && !(tk.done && !tk.recurring)).length;
+      actions.appendChild(el("span", { class: "category-count muted small" }, `${count}`));
+
+      card.appendChild(actions);
+      container.appendChild(card);
     });
   }
 
@@ -524,12 +766,11 @@
     settingsDrawer.hidden = false;
     settingsDrawer.setAttribute("aria-hidden", "false");
     renderLangPicker($("#settingsLang"));
+    renderSeverityEditor($("#settingsSeverities"));
     renderCategoryEditor($("#settingsCategories"));
-    // Notif state
     const notifToggle = $("#notifToggle");
     notifToggle.checked = state.settings.notifications && Notification?.permission === "granted";
     refreshNotifStatus();
-    // Theme seg
     $$("#themeSeg button").forEach(b => b.classList.toggle("is-active", b.dataset.theme === state.settings.theme));
   }
   function closeSettings() {
@@ -540,10 +781,18 @@
     $("#menuBtn").onclick = openSettings;
     $$("[data-close-drawer]", settingsDrawer).forEach(b => b.onclick = closeSettings);
 
-    $("#settingsAddCat").onclick = () => {
-      state.categories.push({ id: cryptoId(), key: "custom", labelKey: null, label: "Custom", color: "#9B8CFF", threshold: 120 });
+    $("#settingsAddSeverity").onclick = () => {
+      state.severities.push({ id: cryptoId(), key: "custom", labelKey: null, label: "Custom", color: "#9B8CFF", threshold: 120 });
+      save();
+      renderSeverityEditor($("#settingsSeverities"));
+      render();
+    };
+
+    $("#settingsAddCategory").onclick = () => {
+      state.categories.push({ id: cryptoId(), name: "", color: null, icon: null, muted: false });
       save();
       renderCategoryEditor($("#settingsCategories"));
+      renderTaskCategoryOptions();
       render();
     };
 
@@ -570,8 +819,14 @@
     $("#exportBtn").onclick = exportData;
     $("#importBtn").onclick = () => $("#importFile").click();
     $("#importFile").onchange = importData;
-    $("#resetBtn").onclick = () => {
-      if (confirm(t("confirm.reset"))) {
+    $("#resetBtn").onclick = async () => {
+      const ok = await confirmDialog({
+        title: t("confirm.resetTitle"),
+        body: t("confirm.resetBody"),
+        confirmText: t("confirm.resetOk"),
+        danger: true,
+      });
+      if (ok) {
         localStorage.removeItem(STORAGE_KEY);
         state = defaultState();
         save();
@@ -585,16 +840,16 @@
   }
 
   function refreshNotifStatus() {
-    const el = $("#notifStatus");
+    const elS = $("#notifStatus");
     if (!("Notification" in window)) {
-      el.textContent = "Notifications not supported in this browser.";
+      elS.textContent = "Notifications not supported in this browser.";
       $("#notifToggle").disabled = true;
       return;
     }
     const p = Notification.permission;
-    if (p === "granted") el.textContent = state.settings.notifications ? "" : "Permission granted. Toggle on to enable.";
-    else if (p === "denied") el.textContent = "Blocked in browser settings.";
-    else el.textContent = "We'll ask the browser for permission.";
+    if (p === "granted") elS.textContent = state.settings.notifications ? "" : "Permission granted. Toggle on to enable.";
+    else if (p === "denied") elS.textContent = "Blocked in browser settings.";
+    else elS.textContent = "We'll ask the browser for permission.";
   }
 
   /* ============================================================
@@ -620,18 +875,20 @@
       return false;
     }
   }
-  function maybeNotify(task, cat) {
+  function maybeNotify(task, sev) {
     if (!state.settings.notifications) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    // Only notify when the category changes upward
-    if (task.lastNotifiedCat === cat.id) return;
+    // Respect category mute
+    const cat = task.categoryId ? state.categories.find(c => c.id === task.categoryId) : null;
+    if (cat && cat.muted) return;
+    if (task.lastNotifiedSev === sev.id) return;
     try {
       new Notification(t("notif.title"), {
-        body: t("notif.bodyOne", { name: task.name, level: categoryLabel(cat) }),
+        body: t("notif.bodyOne", { name: task.name, level: severityLabel(sev) }),
         icon: "favicon.svg",
-        tag: task.id + ":" + cat.id,
+        tag: task.id + ":" + sev.id,
       });
-      task.lastNotifiedCat = cat.id;
+      task.lastNotifiedSev = sev.id;
       save();
     } catch (e) { /* ignore */ }
   }
@@ -656,8 +913,7 @@
       try {
         const parsed = JSON.parse(r.result);
         if (!parsed || typeof parsed !== "object") throw new Error("bad");
-        // Merge somewhat safely
-        state = Object.assign(defaultState(), parsed);
+        state = migrate(Object.assign(defaultState(), parsed));
         save();
         applyTheme();
         applyI18n();
@@ -677,6 +933,19 @@
   const modal = $("#taskModal");
   let editingTaskId = null;
 
+  function renderTaskCategoryOptions() {
+    const sel = $("#taskCategory");
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    sel.appendChild(el("option", { value: "" }, t("task.noCategory")));
+    state.categories.forEach(cat => {
+      const label = (cat.icon ? cat.icon + " " : "") + categoryName(cat);
+      sel.appendChild(el("option", { value: cat.id }, label));
+    });
+    sel.value = current;
+  }
+
   function openTaskModal(task) {
     editingTaskId = task?.id || null;
     $("#taskModalTitle").textContent = t(task ? "task.edit" : "task.new");
@@ -685,6 +954,8 @@
     $("#taskUnit").value = task?.unit || "day";
     $("#taskRecurring").checked = task ? !!task.recurring : true;
     $("#taskNotes").value = task?.notes || "";
+    renderTaskCategoryOptions();
+    $("#taskCategory").value = task?.categoryId || "";
     $("#deleteTaskBtn").hidden = !task;
     modal.hidden = false;
     setTimeout(() => $("#taskName").focus(), 60);
@@ -706,22 +977,24 @@
       const unit = $("#taskUnit").value;
       const recurring = $("#taskRecurring").checked;
       const notes = $("#taskNotes").value.trim();
+      const categoryId = $("#taskCategory").value || null;
 
       if (editingTaskId) {
         const tk = state.tasks.find(x => x.id === editingTaskId);
         if (tk) {
-          Object.assign(tk, { name, amount, unit, recurring, notes });
-          tk.lastNotifiedCat = null;
+          Object.assign(tk, { name, amount, unit, recurring, notes, categoryId });
+          tk.lastNotifiedSev = null;
           toast(t("toast.updated"));
         }
       } else {
         state.tasks.push({
           id: cryptoId(),
           name, amount, unit, recurring, notes,
+          categoryId,
           createdAt: Date.now(),
           lastDoneAt: null,
           dismissedUntil: 0,
-          lastNotifiedCat: null,
+          lastNotifiedSev: null,
           doneHistory: [],
           done: false,
         });
@@ -732,9 +1005,15 @@
       render();
     };
 
-    $("#deleteTaskBtn").onclick = () => {
+    $("#deleteTaskBtn").onclick = async () => {
       if (!editingTaskId) return;
-      if (confirm(t("confirm.delete"))) {
+      const ok = await confirmDialog({
+        title: t("confirm.deleteTitle"),
+        body: t("confirm.deleteBody"),
+        confirmText: t("confirm.deleteOk"),
+        danger: true,
+      });
+      if (ok) {
         state.tasks = state.tasks.filter(x => x.id !== editingTaskId);
         save();
         closeTaskModal();
@@ -745,31 +1024,253 @@
   }
 
   /* ============================================================
+     GENERIC CONFIRM DIALOG
+     ============================================================ */
+  function confirmDialog({ title, body, confirmText, danger }) {
+    return new Promise((resolve) => {
+      const dlg = $("#confirmDialog");
+      $("#confirmTitle").textContent = title || "";
+      $("#confirmBody").textContent = body || "";
+      const okBtn = $("#confirmOk");
+      okBtn.textContent = confirmText || t("confirm.ok");
+      okBtn.classList.toggle("btn-danger", !!danger);
+      okBtn.classList.toggle("btn-primary", !danger);
+      dlg.hidden = false;
+      const cleanup = () => {
+        dlg.hidden = true;
+        okBtn.onclick = null;
+        $$("[data-cancel]", dlg).forEach(b => b.onclick = null);
+      };
+      okBtn.onclick = () => { cleanup(); resolve(true); };
+      $$("[data-cancel]", dlg).forEach(b => b.onclick = () => { cleanup(); resolve(false); });
+    });
+  }
+
+  /* ============================================================
+     DISMISS DIALOG (returns ms, "untilDue", or null)
+     ============================================================ */
+  function dismissDialog() {
+    return new Promise((resolve) => {
+      const dlg = $("#dismissDialog");
+      const opts = $("#dismissOptions");
+      const customRow = $("#dismissCustomRow");
+      customRow.hidden = true;
+      let chosen = "untilDue";
+      const options = [
+        { key: "untilDue", labelKey: "dismiss.untilDue" },
+        { key: "1h", labelKey: "dismiss.1h" },
+        { key: "1d", labelKey: "dismiss.1d" },
+        { key: "1w", labelKey: "dismiss.1w" },
+        { key: "custom", labelKey: "dismiss.custom" },
+      ];
+      opts.innerHTML = "";
+      options.forEach(o => {
+        const btn = el("button", {
+          type: "button",
+          class: "opt" + (o.key === chosen ? " is-active" : ""),
+          onclick: () => {
+            chosen = o.key;
+            $$(".opt", opts).forEach(x => x.classList.toggle("is-active", x === btn));
+            customRow.hidden = chosen !== "custom";
+          },
+        }, t(o.labelKey));
+        opts.appendChild(btn);
+      });
+      dlg.hidden = false;
+      const cleanup = () => {
+        dlg.hidden = true;
+        $("#dismissOk").onclick = null;
+        $$("[data-cancel]", dlg).forEach(b => b.onclick = null);
+      };
+      $("#dismissOk").onclick = () => {
+        let ms = null;
+        if (chosen === "untilDue") ms = "untilDue";
+        else if (chosen === "1h") ms = UNIT_MS.hour;
+        else if (chosen === "1d") ms = UNIT_MS.day;
+        else if (chosen === "1w") ms = UNIT_MS.week;
+        else if (chosen === "custom") {
+          const amount = Math.max(1, parseInt($("#dismissAmount").value, 10) || 1);
+          const unit = $("#dismissUnit").value;
+          ms = amount * (UNIT_MS[unit] || UNIT_MS.day);
+        }
+        cleanup();
+        resolve(ms);
+      };
+      $$("[data-cancel]", dlg).forEach(b => b.onclick = () => { cleanup(); resolve(null); });
+    });
+  }
+
+  /* ============================================================
+     ICON PICKER
+     ============================================================ */
+  function openIconPicker(onPick, currentIcon) {
+    const dlg = $("#iconPicker");
+    const grid = $("#iconGrid");
+    grid.innerHTML = "";
+    ICON_SET.forEach(ico => {
+      const b = el("button", {
+        type: "button",
+        class: "icon-cell" + (currentIcon === ico ? " is-active" : ""),
+        onclick: () => { cleanup(); onPick(ico); },
+      }, ico);
+      grid.appendChild(b);
+    });
+    dlg.hidden = false;
+    const cleanup = () => {
+      dlg.hidden = true;
+      $$("[data-cancel]", dlg).forEach(b => b.onclick = null);
+      $("#iconClear").onclick = null;
+    };
+    $$("[data-cancel]", dlg).forEach(b => b.onclick = cleanup);
+    $("#iconClear").onclick = () => { cleanup(); onPick(null); };
+  }
+
+  /* ============================================================
      TASK ACTIONS
      ============================================================ */
-  function markDone(task) {
+  async function markDoneWithConfirm(task) {
+    const ok = await confirmDialog({
+      title: t("confirm.markDoneTitle"),
+      body: t("confirm.markDoneBody", { name: task.name }),
+      confirmText: t("confirm.markDoneOk"),
+    });
+    if (!ok) return;
+    markDoneRaw(task);
+  }
+  function markDoneRaw(task) {
     const now = Date.now();
     task.doneHistory = task.doneHistory || [];
     task.doneHistory.push(now);
     task.lastDoneAt = now;
-    task.lastNotifiedCat = null;
+    task.lastNotifiedSev = null;
     task.dismissedUntil = 0;
     if (!task.recurring) task.done = true;
+    state.stats = state.stats || { totalDone: 0 };
+    state.stats.totalDone += 1;
     save();
+    celebrate(task);
     render();
-    toast(t("toast.markedDone"));
   }
-  function dismissTask(task) {
-    // Effectively "snooze" until next due (treat as if done now for tracking purposes? No — just hide current warning until next cycle)
-    const now = Date.now();
-    task.dismissedUntil = dueAt(task); // hide until next due time
-    // Reset progression so it doesn't immediately re-fire
-    task.lastDoneAt = now;
-    task.lastNotifiedCat = null;
-    if (!task.recurring) task.done = true;
+  async function dismissWithDialog(task) {
+    const ms = await dismissDialog();
+    if (ms == null) return;
+    applyDismiss(task, ms);
     save();
     render();
     toast(t("toast.dismissed"));
+  }
+  function applyDismiss(task, ms) {
+    const now = Date.now();
+    if (ms === "untilDue") {
+      task.lastDoneAt = now;
+      task.dismissedUntil = now + intervalMs(task);
+    } else {
+      task.dismissedUntil = now + ms;
+    }
+    task.lastNotifiedSev = null;
+    if (!task.recurring && ms === "untilDue") task.done = true;
+  }
+  function undismiss(task) {
+    task.dismissedUntil = 0;
+    save();
+    render();
+    toast(t("toast.undismissed"));
+  }
+
+  /* ============================================================
+     CATEGORY BULK ACTIONS
+     ============================================================ */
+  async function bulkMarkDoneForCategory(cat) {
+    const targets = state.tasks.filter(tk => tk.categoryId === cat.id && !(tk.done && !tk.recurring));
+    if (targets.length === 0) return;
+    const ok = await confirmDialog({
+      title: t("confirm.bulkDoneTitle"),
+      body: t("confirm.bulkDoneBody", { n: targets.length, cat: categoryName(cat) }),
+      confirmText: t("confirm.ok"),
+    });
+    if (!ok) return;
+    targets.forEach(tk => {
+      const now = Date.now();
+      tk.doneHistory = tk.doneHistory || [];
+      tk.doneHistory.push(now);
+      tk.lastDoneAt = now;
+      tk.dismissedUntil = 0;
+      tk.lastNotifiedSev = null;
+      if (!tk.recurring) tk.done = true;
+    });
+    state.stats.totalDone += targets.length;
+    save();
+    renderCategoryEditor($("#settingsCategories"));
+    render();
+    celebrateBulk(targets.length);
+    toast(t("toast.bulkDone", { n: targets.length }));
+  }
+  async function bulkDismissForCategory(cat) {
+    const targets = state.tasks.filter(tk => tk.categoryId === cat.id && !(tk.done && !tk.recurring));
+    if (targets.length === 0) return;
+    const ms = await dismissDialog();
+    if (ms == null) return;
+    const ok = await confirmDialog({
+      title: t("confirm.bulkDismissTitle", { cat: categoryName(cat) }),
+      body: t("confirm.bulkDismissBody", { n: targets.length, cat: categoryName(cat) }),
+      confirmText: t("dismiss.confirm"),
+    });
+    if (!ok) return;
+    targets.forEach(tk => applyDismiss(tk, ms));
+    save();
+    renderCategoryEditor($("#settingsCategories"));
+    render();
+    toast(t("toast.bulkDismiss", { n: targets.length }));
+  }
+
+  /* ============================================================
+     CELEBRATION
+     ============================================================ */
+  function recentStreak(task) {
+    if (!task.recurring || !task.doneHistory || task.doneHistory.length < 2) return 0;
+    const span = intervalMs(task);
+    let n = 1;
+    for (let i = task.doneHistory.length - 1; i > 0; i--) {
+      const gap = task.doneHistory[i] - task.doneHistory[i - 1];
+      if (gap > 0 && gap <= span * 1.5) n++;
+      else break;
+    }
+    return n;
+  }
+  function pickCelebrateMsg(task) {
+    const streak = recentStreak(task);
+    if (streak >= 3) return t("celebrate.streak", { n: streak });
+    const i = (state.stats.totalDone || 0) % 7;
+    return t("celebrate." + i);
+  }
+  let celebrateTimer = null;
+  function celebrate(task) {
+    const overlay = $("#celebrate");
+    const msg = $("#celebrateMsg");
+    msg.textContent = pickCelebrateMsg(task);
+    overlay.hidden = false;
+    overlay.classList.remove("is-on");
+    void overlay.offsetWidth;
+    overlay.classList.add("is-on");
+    clearTimeout(celebrateTimer);
+    celebrateTimer = setTimeout(() => {
+      overlay.classList.remove("is-on");
+      overlay.hidden = true;
+    }, 1400);
+  }
+  function celebrateBulk(n) {
+    const overlay = $("#celebrate");
+    const msg = $("#celebrateMsg");
+    msg.textContent = `+${n}  ${t("celebrate.0")}`;
+    overlay.hidden = false;
+    overlay.classList.remove("is-on");
+    void overlay.offsetWidth;
+    overlay.classList.add("is-on");
+    clearTimeout(celebrateTimer);
+    celebrateTimer = setTimeout(() => {
+      overlay.classList.remove("is-on");
+      overlay.hidden = true;
+    }, 1600);
   }
 
   /* ============================================================
@@ -784,51 +1285,54 @@
         render();
       };
     });
-    // restore
     $$(".tab").forEach(tab => tab.classList.toggle("is-active", tab.dataset.tab === state.activeTab));
   }
-
-  function tasksForTab(now) {
+  function buildItems(now) {
     return state.tasks.map(task => {
       const isDone = task.done && !task.recurring;
       const pct = elapsedPct(task, now);
-      const cat = !isDone && pct >= 0 ? activeCategory(pct, state.categories) : null;
+      const sev = !isDone ? activeSeverity(pct, state.severities) : null;
       const due = dueAt(task);
       const remaining = due - now;
-      return { task, isDone, pct, cat, due, remaining };
+      const isDismissed = task.dismissedUntil && now < task.dismissedUntil;
+      const cat = task.categoryId ? state.categories.find(c => c.id === task.categoryId) : null;
+      return { task, isDone, pct, sev, due, remaining, isDismissed, cat };
     });
   }
-
   function renderTask(item) {
-    const { task, isDone, pct, cat, remaining } = item;
-    const cats = [...state.categories].sort((a, b) => a.threshold - b.threshold);
-    const maxPct = Math.max(maxThreshold(state.categories), 150);
+    const { task, isDone, pct, sev, remaining, isDismissed, cat } = item;
+    const maxPct = Math.max(maxThreshold(state.severities), 150);
     const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
-    const stripeColor = cat ? cat.color : "var(--text-faint)";
-
-    const node = el("article", { class: "task", style: { "--cat-color": stripeColor } });
+    const stripeColor = sev ? sev.color : (cat?.color || "var(--text-faint)");
+    const node = el("article", { class: "task" + (cat?.muted ? " is-muted" : ""), style: { "--cat-color": stripeColor } });
     node.appendChild(el("div", { class: "task-stripe" }));
-
-    // Head: title + (optional) edit button hidden, click whole card to edit? Provide explicit Edit in actions.
-    const head = el("div", { class: "task-head" },
-      el("div", { class: "task-title" }, task.name)
-    );
+    const head = el("div", { class: "task-head" });
+    if (cat?.icon) head.appendChild(el("span", { class: "task-icon", "aria-hidden": "true" }, cat.icon));
+    head.appendChild(el("div", { class: "task-title" }, task.name));
     node.appendChild(head);
-
-    // Meta
     const meta = el("div", { class: "task-meta" });
     if (cat) {
+      const catChip = el("span", { class: "chip chip-cat", style: cat.color ? { "--chip-color": cat.color } : {} });
+      catChip.appendChild(el("span", { class: "dot" }));
+      catChip.appendChild(document.createTextNode(categoryName(cat)));
+      if (cat.muted) catChip.appendChild(el("span", { class: "mute-indicator", title: t("category.muted") }, "🔕"));
+      meta.appendChild(catChip);
+    }
+    if (sev && !isDismissed) {
       meta.appendChild(el("span", { class: "chip is-cat" },
         el("span", { class: "dot" }),
-        categoryLabel(cat)
+        severityLabel(sev)
       ));
-    } else {
+    } else if (!isDone && !isDismissed) {
       meta.appendChild(el("span", { class: "chip" }, t("status.upcoming")));
     }
     meta.appendChild(el("span", {}, task.recurring ? t("status.recurring") : t("status.oneTime")));
     meta.appendChild(el("span", {}, "·"));
     if (isDone) {
       meta.appendChild(el("span", {}, t("status.done")));
+    } else if (isDismissed) {
+      const remainingDismiss = task.dismissedUntil - Date.now();
+      meta.appendChild(el("span", {}, `${t("status.dismissedFor")} ${fmtHuman(remainingDismiss)}`));
     } else if (remaining > 0) {
       meta.appendChild(el("span", {}, `${t("status.dueIn")} ${fmtHuman(remaining)}`));
     } else if (Math.abs(remaining) < UNIT_MS.minute) {
@@ -837,116 +1341,77 @@
       meta.appendChild(el("span", {}, `${t("status.overdueBy")} ${fmtHuman(remaining)}`));
     }
     node.appendChild(meta);
-
-    // Notes
     if (task.notes) node.appendChild(el("div", { class: "task-notes" }, task.notes));
-
-    // Progress bar
     const bar = el("div", { class: "task-progress" }, el("span", { style: { width: widthPct + "%" } }));
     node.appendChild(bar);
-
-    // Actions
     const actions = el("div", { class: "task-actions" });
-    if (!isDone) {
-      const btnDone = el("button", { class: "btn btn-primary", onclick: () => markDone(task) }, t("action.markDone"));
-      actions.appendChild(btnDone);
-      const btnDismiss = el("button", { class: "btn btn-ghost", onclick: () => dismissTask(task) }, t("action.dismiss"));
-      actions.appendChild(btnDismiss);
+    if (isDismissed) {
+      actions.appendChild(el("button", { class: "btn btn-primary", onclick: () => undismiss(task) }, t("action.undismiss")));
+    } else if (!isDone) {
+      actions.appendChild(el("button", { class: "btn btn-primary", onclick: () => markDoneWithConfirm(task) }, t("action.markDone")));
+      actions.appendChild(el("button", { class: "btn btn-ghost", onclick: () => dismissWithDialog(task) }, t("action.dismiss")));
     }
-    const btnEdit = el("button", { class: "btn btn-ghost", onclick: () => openTaskModal(task) }, t("action.edit"));
-    actions.appendChild(btnEdit);
+    actions.appendChild(el("button", { class: "btn btn-ghost", onclick: () => openTaskModal(task) }, t("action.edit")));
     node.appendChild(actions);
-
     return node;
   }
-
   function renderSection(parent, titleKey, items) {
     if (!items.length) return;
-    const head = el("div", { class: "section-head" },
+    parent.appendChild(el("div", { class: "section-head" },
       el("span", {}, t(titleKey)),
       el("span", { class: "count" }, String(items.length))
-    );
-    parent.appendChild(head);
+    ));
     items.forEach(item => parent.appendChild(renderTask(item)));
   }
-
   function render() {
     const now = Date.now();
-    const items = tasksForTab(now);
+    const items = buildItems(now);
     const tab = state.activeTab;
-
     const container = $("#tasksList");
     container.innerHTML = "";
-
-    // Active = items currently in any category (and not dismissed beyond current due) and not done
-    // Upcoming = items below first threshold or dismissed and waiting
-    let active = items.filter(i => !i.isDone && i.cat);
-    // dismissed: if dismissedUntil > now and the user effectively "marked as done within time", treat as upcoming
-    active = active.filter(i => !(i.task.dismissedUntil && now < i.task.dismissedUntil));
-    let upcoming = items.filter(i => !i.isDone && !active.includes(i));
+    let active = items.filter(i => !i.isDone && !i.isDismissed && i.sev);
+    let upcoming = items.filter(i => !i.isDone && !i.isDismissed && !i.sev);
+    let dismissed = items.filter(i => !i.isDone && i.isDismissed);
     let done = items.filter(i => i.isDone);
-
-    // Sort active by criticality (highest pct vs maxThreshold) then by pct
     active.sort((a, b) => {
-      const ta = a.cat?.threshold || 0;
-      const tb = b.cat?.threshold || 0;
+      const ta = a.sev?.threshold || 0;
+      const tb = b.sev?.threshold || 0;
       if (tb !== ta) return tb - ta;
       return b.pct - a.pct;
     });
-    // Upcoming by closest due first
     upcoming.sort((a, b) => a.remaining - b.remaining);
-    // Done by most recently done
+    dismissed.sort((a, b) => a.task.dismissedUntil - b.task.dismissedUntil);
     done.sort((a, b) => (b.task.lastDoneAt || 0) - (a.task.lastDoneAt || 0));
-
-    // Notifications: fire for items that just transitioned to a higher category
-    active.forEach(i => maybeNotify(i.task, i.cat));
-
-    // Decide what to show per tab
+    active.forEach(i => maybeNotify(i.task, i.sev));
     if (tab === "active") {
-      if (active.length === 0) {
-        showEmpty("empty.activeTitle", "empty.activeBody");
-        return;
-      } else {
-        hideEmpty();
-        renderSection(container, "tab.active", active);
-      }
+      if (active.length === 0) return showEmpty("empty.activeTitle", "empty.activeBody");
+      hideEmpty(); renderSection(container, "tab.active", active);
     } else if (tab === "upcoming") {
-      if (upcoming.length === 0) {
-        showEmpty("empty.title", "empty.body");
-        return;
-      } else {
-        hideEmpty();
-        renderSection(container, "tab.upcoming", upcoming);
-      }
+      if (upcoming.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
+      hideEmpty(); renderSection(container, "tab.upcoming", upcoming);
+    } else if (tab === "dismissed") {
+      if (dismissed.length === 0) return showEmpty("empty.dismissedTitle", "empty.dismissedBody");
+      hideEmpty(); renderSection(container, "tab.dismissed", dismissed);
     } else if (tab === "done") {
-      if (done.length === 0) {
-        showEmpty("empty.doneTitle", "empty.doneBody");
-        return;
-      } else {
-        hideEmpty();
-        renderSection(container, "tab.done", done);
-      }
+      if (done.length === 0) return showEmpty("empty.doneTitle", "empty.doneBody");
+      hideEmpty(); renderSection(container, "tab.done", done);
     } else {
-      // all
-      if (active.length + upcoming.length + done.length === 0) {
-        showEmpty("empty.title", "empty.body");
-        return;
-      } else {
-        hideEmpty();
-        renderSection(container, "tab.active", active);
-        renderSection(container, "tab.upcoming", upcoming);
-        renderSection(container, "tab.done", done);
-      }
+      if (active.length + upcoming.length + dismissed.length + done.length === 0)
+        return showEmpty("empty.title", "empty.body");
+      hideEmpty();
+      renderSection(container, "tab.active", active);
+      renderSection(container, "tab.upcoming", upcoming);
+      renderSection(container, "tab.dismissed", dismissed);
+      renderSection(container, "tab.done", done);
     }
   }
-
   function showEmpty(titleKey, bodyKey) {
-    const c = $("#tasksList");
-    c.innerHTML = "";
-    $("#emptyState").hidden = false;
-    $("#emptyState").querySelector("h2").textContent = t(titleKey);
-    $("#emptyState").querySelector("p").textContent = t(bodyKey);
-    $("#emptyState").querySelector("button").textContent = t("empty.cta");
+    $("#tasksList").innerHTML = "";
+    const e = $("#emptyState");
+    e.hidden = false;
+    e.querySelector("h2").textContent = t(titleKey);
+    e.querySelector("p").textContent = t(bodyKey);
+    e.querySelector("button").textContent = t("empty.cta");
   }
   function hideEmpty() { $("#emptyState").hidden = true; }
 
@@ -955,14 +1420,14 @@
      ============================================================ */
   let toastTimer = null;
   function toast(msg) {
-    const el = $("#toast");
-    el.textContent = msg;
-    el.hidden = false;
-    requestAnimationFrame(() => el.classList.add("show"));
+    const elT = $("#toast");
+    elT.textContent = msg;
+    elT.hidden = false;
+    requestAnimationFrame(() => elT.classList.add("show"));
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
-      el.classList.remove("show");
-      setTimeout(() => { el.hidden = true; }, 250);
+      elT.classList.remove("show");
+      setTimeout(() => { elT.hidden = true; }, 250);
     }, 2200);
   }
 
@@ -972,7 +1437,6 @@
   function startup() {
     applyTheme();
     applyI18n();
-
     if (!state.onboardingDone) {
       onboarding.hidden = false;
       app.hidden = true;
@@ -983,32 +1447,26 @@
       render();
     }
   }
-
   function init() {
     bindOnboarding();
     bindSettings();
     bindTaskModal();
     bindTabs();
     startup();
-
-    // Recompute progress + notifications periodically
     setInterval(() => { if (!app.hidden) render(); }, 30 * 1000);
-
-    // When user returns to tab, refresh
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && !app.hidden) render();
     });
-
-    // Keyboard: ESC closes modals/drawer
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        if (!modal.hidden) closeTaskModal();
-        else if (!settingsDrawer.hidden) closeSettings();
+      if (e.key !== "Escape") return;
+      const layers = ["#iconPicker", "#bulkDialog", "#dismissDialog", "#confirmDialog", "#taskModal"];
+      for (const sel of layers) {
+        const n = $(sel);
+        if (n && !n.hidden) { n.hidden = true; return; }
       }
+      if (!settingsDrawer.hidden) closeSettings();
     });
   }
-
-  // Boot
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
