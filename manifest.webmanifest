@@ -1,0 +1,15 @@
+{
+  "name": "TooLongAgo",
+  "short_name": "TooLongAgo",
+  "description": "Gentle reminders for things you don't want to forget.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1B2238",
+  "theme_color": "#1B2238",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "logo.svg",    "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

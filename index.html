@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1B2238" />
+  <meta name="description" content="TooLongAgo — gentle reminders for things you don't want to forget." />
+  <title>TooLongAgo</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="favicon.svg" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app" class="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <img src="logo.svg" alt="" class="brand-logo" aria-hidden="true" />
+      <h1 class="brand-name">TooLongAgo</h1>
+    </div>
+    <button id="menuBtn" class="icon-btn" aria-label="Menu" title="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+    </button>
+  </header>
+
+  <main class="main">
+    <!-- Filter tabs -->
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-tab="active" role="tab" data-i18n="tab.active">Active</button>
+      <button class="tab" data-tab="upcoming" role="tab" data-i18n="tab.upcoming">Upcoming</button>
+      <button class="tab" data-tab="all" role="tab" data-i18n="tab.all">All</button>
+      <button class="tab" data-tab="done" role="tab" data-i18n="tab.done">Done</button>
+    </nav>
+
+    <section id="tasksList" class="tasks" aria-live="polite"></section>
+
+    <div id="emptyState" class="empty" hidden>
+      <img src="logo.svg" alt="" class="empty-logo" aria-hidden="true" />
+      <h2 data-i18n="empty.title">Nothing here yet</h2>
+      <p data-i18n="empty.body">Add your first reminder to get started.</p>
+      <button class="btn btn-primary" id="emptyAddBtn" data-i18n="empty.cta">Add a task</button>
+    </div>
+  </main>
+
+  <button id="addBtn" class="fab" aria-label="Add task" title="Add task">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg>
+  </button>
+</div>
+
+<!-- ============ ONBOARDING ============ -->
+<div id="onboarding" class="onboard" hidden>
+  <div class="onboard-card">
+    <!-- Step 1: welcome -->
+    <section class="step is-active" data-step="1">
+      <img src="logo.svg" alt="" class="onboard-logo" />
+      <h1 class="onboard-title">TooLongAgo</h1>
+      <p class="onboard-sub" data-i18n="onboard.welcomeSub">Gentle nudges for the things you keep meaning to do.</p>
+      <button class="btn btn-primary btn-block" data-next data-i18n="onboard.start">Get started</button>
+    </section>
+
+    <!-- Step 2: language -->
+    <section class="step" data-step="2">
+      <h2 class="step-title" data-i18n="onboard.langTitle">Choose your language</h2>
+      <p class="step-sub" data-i18n="onboard.langSub">You can change this any time in Settings.</p>
+      <div class="lang-grid" id="onboardLang"></div>
+      <div class="step-actions">
+        <button class="btn btn-ghost" data-prev data-i18n="back">Back</button>
+        <button class="btn btn-primary" data-next data-i18n="next">Next</button>
+      </div>
+    </section>
+
+    <!-- Step 3: categories -->
+    <section class="step" data-step="3">
+      <h2 class="step-title" data-i18n="onboard.catTitle">Warning levels</h2>
+      <p class="step-sub" data-i18n="onboard.catSub">When a task is overdue, these are how seriously we'll flag it. Tweak the names, colors, or thresholds, or use the defaults.</p>
+      <div id="onboardCategories" class="cat-list"></div>
+      <button class="btn btn-ghost btn-block" id="onboardAddCat" data-i18n="cat.add">+ Add level</button>
+      <div class="step-actions">
+        <button class="btn btn-ghost" data-prev data-i18n="back">Back</button>
+        <button class="btn btn-primary" data-next data-i18n="next">Next</button>
+      </div>
+    </section>
+
+    <!-- Step 4: notifications -->
+    <section class="step" data-step="4">
+      <h2 class="step-title" data-i18n="onboard.notifTitle">Enable notifications?</h2>
+      <p class="step-sub" data-i18n="onboard.notifSub">We'll quietly let you know when something needs your attention. You can change this later.</p>
+      <div class="notif-illustration" aria-hidden="true">
+        <div class="bell">
+          <svg viewBox="0 0 24 24" width="48" height="48"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.45-2H9.55A2.5 2.5 0 0 0 12 22Zm6.36-6 1.64 2v1H4v-1l1.64-2V11a6.36 6.36 0 0 1 5-6.22V4a1.36 1.36 0 0 1 2.72 0v.78a6.36 6.36 0 0 1 5 6.22Z"/></svg>
+        </div>
+      </div>
+      <div class="step-actions">
+        <button class="btn btn-ghost" data-prev data-i18n="back">Back</button>
+        <button class="btn btn-secondary" data-next data-i18n="onboard.notifSkip">Maybe later</button>
+        <button class="btn btn-primary" id="onboardEnableNotif" data-i18n="onboard.notifEnable">Enable</button>
+      </div>
+    </section>
+
+    <!-- Step 5: ready -->
+    <section class="step" data-step="5">
+      <div class="celebrate" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="72" height="72"><circle cx="32" cy="32" r="28" fill="#28C68A" opacity="0.15"/><path d="M20 32 l9 9 l16 -18" stroke="#28C68A" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 class="step-title" data-i18n="onboard.readyTitle">You're all set</h2>
+      <p class="step-sub" data-i18n="onboard.readySub">Add a few things you tend to forget. We'll keep an eye on the clock.</p>
+      <button class="btn btn-primary btn-block" id="finishOnboarding" data-i18n="onboard.finish">Add my first task</button>
+    </section>
+
+    <!-- Step indicators -->
+    <div class="dots" id="onboardDots"></div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS DRAWER ============ -->
+<aside id="settings" class="drawer" hidden aria-hidden="true">
+  <div class="drawer-scrim" data-close-drawer></div>
+  <div class="drawer-panel" role="dialog" aria-label="Settings">
+    <header class="drawer-head">
+      <h2 data-i18n="settings.title">Settings</h2>
+      <button class="icon-btn" data-close-drawer aria-label="Close">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M18.3 5.71 12 12.01l6.3 6.29-1.41 1.41L10.59 13.4 4.29 19.71l-1.41-1.41 6.3-6.29-6.3-6.3L4.29 4.3l6.3 6.29 6.3-6.29z"/></svg>
+      </button>
+    </header>
+
+    <div class="drawer-body">
+      <section class="setting">
+        <h3 data-i18n="settings.language">Language</h3>
+        <div class="lang-grid" id="settingsLang"></div>
+      </section>
+
+      <section class="setting">
+        <h3 data-i18n="settings.categories">Warning levels</h3>
+        <p class="muted small" data-i18n="settings.categoriesHint">Thresholds are relative to the task's interval. 100% = exactly due.</p>
+        <div id="settingsCategories" class="cat-list"></div>
+        <button class="btn btn-ghost btn-block" id="settingsAddCat" data-i18n="cat.add">+ Add level</button>
+      </section>
+
+      <section class="setting">
+        <h3 data-i18n="settings.notifications">Notifications</h3>
+        <label class="toggle">
+          <input type="checkbox" id="notifToggle" />
+          <span class="toggle-slider"></span>
+          <span class="toggle-label" data-i18n="settings.notifEnable">Enable browser notifications</span>
+        </label>
+        <p class="muted small" id="notifStatus"></p>
+      </section>
+
+      <section class="setting">
+        <h3 data-i18n="settings.theme">Appearance</h3>
+        <div class="seg" id="themeSeg">
+          <button data-theme="auto" data-i18n="theme.auto">Auto</button>
+          <button data-theme="light" data-i18n="theme.light">Light</button>
+          <button data-theme="dark" data-i18n="theme.dark">Dark</button>
+        </div>
+      </section>
+
+      <section class="setting">
+        <h3 data-i18n="settings.data">Your data</h3>
+        <div class="row-btns">
+          <button class="btn btn-ghost" id="exportBtn" data-i18n="settings.export">Export</button>
+          <button class="btn btn-ghost" id="importBtn" data-i18n="settings.import">Import</button>
+          <button class="btn btn-danger" id="resetBtn" data-i18n="settings.reset">Reset all</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json" hidden />
+      </section>
+
+      <p class="footer-note muted small">TooLongAgo · <span data-i18n="footer.local">Everything stays on your device</span></p>
+    </div>
+  </div>
+</aside>
+
+<!-- ============ TASK MODAL ============ -->
+<div id="taskModal" class="modal" hidden>
+  <div class="modal-scrim" data-close-modal></div>
+  <div class="modal-card" role="dialog" aria-label="Task">
+    <header class="modal-head">
+      <h2 id="taskModalTitle" data-i18n="task.new">New task</h2>
+      <button class="icon-btn" data-close-modal aria-label="Close">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M18.3 5.71 12 12.01l6.3 6.29-1.41 1.41L10.59 13.4 4.29 19.71l-1.41-1.41 6.3-6.29-6.3-6.3L4.29 4.3l6.3 6.29 6.3-6.29z"/></svg>
+      </button>
+    </header>
+    <form id="taskForm" class="modal-body">
+      <label class="field">
+        <span data-i18n="task.name">What is it?</span>
+        <input type="text" id="taskName" required maxlength="80" autocomplete="off" placeholder="" />
+      </label>
+
+      <fieldset class="field field-row">
+        <legend data-i18n="task.remindAfter">Remind me after</legend>
+        <input type="number" id="taskAmount" min="1" step="1" value="1" required />
+        <select id="taskUnit">
+          <option value="minute" data-i18n="unit.minute">minute(s)</option>
+          <option value="hour" data-i18n="unit.hour">hour(s)</option>
+          <option value="day" selected data-i18n="unit.day">day(s)</option>
+          <option value="week" data-i18n="unit.week">week(s)</option>
+          <option value="month" data-i18n="unit.month">month(s)</option>
+          <option value="year" data-i18n="unit.year">year(s)</option>
+        </select>
+      </fieldset>
+
+      <label class="field toggle-field">
+        <input type="checkbox" id="taskRecurring" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label" data-i18n="task.recurring">Recurring (repeats after I mark it done)</span>
+      </label>
+
+      <label class="field">
+        <span data-i18n="task.notes">Notes (optional)</span>
+        <textarea id="taskNotes" rows="2" maxlength="280"></textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger btn-ghost" id="deleteTaskBtn" hidden data-i18n="task.delete">Delete</button>
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost" data-close-modal data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
