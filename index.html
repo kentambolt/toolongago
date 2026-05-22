@@ -269,6 +269,44 @@
   </div>
 </div>
 
+<!-- ============ MARK DONE DIALOG ============ -->
+<div id="markDoneDialog" class="modal" hidden>
+  <div class="modal-scrim" data-cancel></div>
+  <div class="modal-card modal-card-sm" role="dialog" aria-label="Mark done">
+    <div class="modal-body">
+      <h3 class="dlg-title" data-i18n="markdone.title">Mark done</h3>
+      <p class="muted dlg-body"><strong id="markDoneTaskName"></strong></p>
+      <p class="muted small" style="margin:0 0 8px" data-i18n="markdone.when">When did you do this?</p>
+      <div id="markDoneOpts" class="opt-list opt-list-vert">
+        <button type="button" class="opt is-active" data-when="now" data-i18n="markdone.now">Just now</button>
+        <button type="button" class="opt" data-when="ago" data-i18n="markdone.ago">Some time ago</button>
+        <button type="button" class="opt" data-when="specific" data-i18n="markdone.specific">On a specific date &amp; time</button>
+      </div>
+      <fieldset class="field field-row" id="markDoneAgoRow" hidden>
+        <input type="number" id="markDoneAgoAmount" min="1" step="1" value="1" />
+        <select id="markDoneAgoUnit">
+          <option value="second" data-i18n="unit.second">second(s)</option>
+          <option value="minute" selected data-i18n="unit.minute">minute(s)</option>
+          <option value="hour" data-i18n="unit.hour">hour(s)</option>
+          <option value="day" data-i18n="unit.day">day(s)</option>
+          <option value="week" data-i18n="unit.week">week(s)</option>
+          <option value="month" data-i18n="unit.month">month(s)</option>
+          <option value="year" data-i18n="unit.year">year(s)</option>
+        </select>
+        <span class="ago-suffix" data-i18n="markdone.agoSuffix">ago</span>
+      </fieldset>
+      <fieldset class="field" id="markDoneSpecificRow" hidden>
+        <input type="datetime-local" id="markDoneSpecific" />
+      </fieldset>
+      <div class="modal-actions">
+        <span style="flex:1"></span>
+        <button type="button" class="btn btn-ghost" data-cancel data-i18n="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="markDoneOk" data-i18n="markdone.confirm">Done!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============ DISMISS DIALOG ============ -->
 <div id="dismissDialog" class="modal" hidden>
   <div class="modal-scrim" data-cancel></div>

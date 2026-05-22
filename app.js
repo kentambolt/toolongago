@@ -156,6 +156,14 @@
       "confirm.markDoneTitle": "Mark this done?",
       "confirm.markDoneBody": "We'll reset the timer for \"{name}\".",
       "confirm.markDoneOk": "Yes, done!",
+      "markdone.title": "Mark done",
+      "markdone.when": "When did you do this?",
+      "markdone.now": "Just now",
+      "markdone.ago": "Some time ago",
+      "markdone.specific": "On a specific date & time",
+      "markdone.agoSuffix": "ago",
+      "markdone.confirm": "Done!",
+      "unit.second": "second(s)",
       "confirm.deleteTitle": "Delete this task?",
       "confirm.deleteBody": "This can't be undone.",
       "confirm.deleteOk": "Delete",
@@ -336,6 +344,14 @@
       "confirm.markDoneTitle": "Marker som færdig?",
       "confirm.markDoneBody": "Vi nulstiller uret for \"{name}\".",
       "confirm.markDoneOk": "Ja, færdig!",
+      "markdone.title": "Marker færdig",
+      "markdone.when": "Hvornår gjorde du det?",
+      "markdone.now": "Lige nu",
+      "markdone.ago": "For noget tid siden",
+      "markdone.specific": "På et bestemt tidspunkt",
+      "markdone.agoSuffix": "siden",
+      "markdone.confirm": "Færdig!",
+      "unit.second": "sekund(er)",
       "confirm.deleteTitle": "Slet denne opgave?",
       "confirm.deleteBody": "Dette kan ikke fortrydes.",
       "confirm.deleteOk": "Slet",
@@ -402,6 +418,7 @@
   const STORAGE_KEY = "toolongago.v1";
 
   const UNIT_MS = {
+    second: 1000,
     minute: 60 * 1000,
     hour:   60 * 60 * 1000,
     day:    24 * 60 * 60 * 1000,
@@ -527,7 +544,6 @@
      State + migration
      ============================================================ */
   const defaultState = () => ({
-    schemaVersion: 3,
     onboardingDone: false,
     settings: {
       lang: (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en",
@@ -543,43 +559,10 @@
     stats: { totalDone: 0 },
   });
 
-  function migrate(loaded) {
-    if (!loaded) return null;
-    // v1 → v2: rename `categories` (severity levels) → `severities`, add `categories` empty array
-    if (loaded.schemaVersion === 1 || (loaded.categories && !loaded.severities)) {
-      loaded.severities = loaded.categories;
-      loaded.categories = [];
-      loaded.schemaVersion = 2;
-    }
-    // v2 → v3: rename labelKey "cat.*" → "severity.*"; init filter and history
-    const LABEL_MIGRATE = { "cat.reminder": "severity.reminder", "cat.warning": "severity.warning", "cat.critical": "severity.critical" };
-    if (loaded.severities) {
-      loaded.severities.forEach(sev => {
-        if (sev.labelKey && LABEL_MIGRATE[sev.labelKey]) sev.labelKey = LABEL_MIGRATE[sev.labelKey];
-      });
-    }
-    loaded.filter = loaded.filter || { categoryIds: [] };
-    loaded.history = loaded.history || [];
-    loaded.schemaVersion = 3;
-    // Defensive defaults
-    loaded.severities = loaded.severities || DEFAULT_SEVERITIES();
-    loaded.categories = loaded.categories || [];
-    loaded.stats = loaded.stats || { totalDone: 0 };
-    loaded.tasks = loaded.tasks || [];
-    // Ensure fields exist on tasks
-    loaded.tasks.forEach(tk => {
-      if (tk.categoryId === undefined) tk.categoryId = null;
-      if (tk.severities === undefined) tk.severities = null;
-      tk.doneHistory = tk.doneHistory || [];
-    });
-    return loaded;
-  }
-
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      return migrate(JSON.parse(raw));
+      return raw ? JSON.parse(raw) : null;
     } catch (e) {
       console.warn("Failed to load state:", e);
       return null;
@@ -996,7 +979,7 @@
       try {
         const parsed = JSON.parse(r.result);
         if (!parsed || typeof parsed !== "object") throw new Error("bad");
-        state = migrate(Object.assign(defaultState(), parsed));
+        state = Object.assign(defaultState(), parsed);
         save();
         applyTheme();
         applyI18n();
@@ -1272,24 +1255,72 @@
      TASK ACTIONS
      ============================================================ */
   async function markDoneWithConfirm(task) {
-    const ok = await confirmDialog({
-      title: t("confirm.markDoneTitle"),
-      body: t("confirm.markDoneBody", { name: task.name }),
-      confirmText: t("confirm.markDoneOk"),
-    });
-    if (!ok) return;
-    markDoneRaw(task);
+    const at = await markDoneDialog(task);
+    if (at == null) return;
+    markDoneRaw(task, at);
   }
-  function markDoneRaw(task) {
-    const now = Date.now();
+
+  function markDoneDialog(task) {
+    return new Promise((resolve) => {
+      const dlg = $("#markDoneDialog");
+      $("#markDoneTaskName").textContent = task.name;
+      let chosen = "now";
+
+      const opts = $$(".opt", $("#markDoneOpts"));
+      opts.forEach(b => {
+        b.classList.toggle("is-active", b.dataset.when === "now");
+        b.onclick = () => {
+          chosen = b.dataset.when;
+          opts.forEach(x => x.classList.toggle("is-active", x === b));
+          $("#markDoneAgoRow").hidden = chosen !== "ago";
+          $("#markDoneSpecificRow").hidden = chosen !== "specific";
+        };
+      });
+      $("#markDoneAgoRow").hidden = true;
+      $("#markDoneSpecificRow").hidden = true;
+
+      // Seed the specific input with current local time
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const localISO = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      $("#markDoneSpecific").value = localISO;
+
+      dlg.hidden = false;
+
+      const cleanup = () => {
+        dlg.hidden = true;
+        $("#markDoneOk").onclick = null;
+        $$("[data-cancel]", dlg).forEach(b => b.onclick = null);
+      };
+
+      $("#markDoneOk").onclick = () => {
+        let ts;
+        if (chosen === "now") {
+          ts = Date.now();
+        } else if (chosen === "ago") {
+          const amount = Math.max(1, parseInt($("#markDoneAgoAmount").value, 10) || 1);
+          const unit = $("#markDoneAgoUnit").value;
+          const ms = amount * (UNIT_MS[unit] || UNIT_MS.minute);
+          ts = Date.now() - ms;
+        } else { // specific
+          const v = $("#markDoneSpecific").value;
+          ts = v ? new Date(v).getTime() : Date.now();
+        }
+        cleanup();
+        resolve(ts);
+      };
+      $$("[data-cancel]", dlg).forEach(b => b.onclick = () => { cleanup(); resolve(null); });
+    });
+  }
+  function markDoneRaw(task, at) {
+    const ts = at || Date.now();
     const prev = { lastDoneAt: task.lastDoneAt, dismissedUntil: task.dismissedUntil, done: task.done };
-    task.doneHistory = task.doneHistory || [];
-    task.doneHistory.push(now);
-    task.lastDoneAt = now;
+    task.doneHistory.push(ts);
+    task.doneHistory.sort((a, b) => a - b);
+    task.lastDoneAt = task.doneHistory[task.doneHistory.length - 1];
     task.lastNotifiedSev = null;
     task.dismissedUntil = 0;
     if (!task.recurring) task.done = true;
-    state.stats = state.stats || { totalDone: 0 };
     state.stats.totalDone += 1;
     logHistory(task.id, "done", prev);
     save();
@@ -1339,7 +1370,6 @@
     targets.forEach(tk => {
       const now = Date.now();
       const prev = { lastDoneAt: tk.lastDoneAt, dismissedUntil: tk.dismissedUntil, done: tk.done };
-      tk.doneHistory = tk.doneHistory || [];
       tk.doneHistory.push(now);
       tk.lastDoneAt = now;
       tk.dismissedUntil = 0;
@@ -1747,7 +1777,6 @@
      HISTORY logging + undo
      ============================================================ */
   function logHistory(taskId, type, prev) {
-    state.history = state.history || [];
     state.history.unshift({
       id: cryptoId(),
       taskId,
@@ -1830,7 +1859,7 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
-      const layers = ["#iconPicker", "#bulkDialog", "#dismissDialog", "#confirmDialog", "#taskModal"];
+      const layers = ["#iconPicker", "#bulkDialog", "#dismissDialog", "#markDoneDialog", "#confirmDialog", "#taskModal"];
       for (const sel of layers) {
         const n = $(sel);
         if (n && !n.hidden) { n.hidden = true; return; }

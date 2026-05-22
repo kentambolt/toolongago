@@ -1102,3 +1102,20 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   padding: 2px 6px;
   font-size: 11px;
 }
+
+/* ---------- Mark Done dialog ---------- */
+.opt-list-vert {
+  grid-template-columns: 1fr;
+}
+.ago-suffix {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+#markDoneSpecific {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--text);
+  width: 100%;
+}
