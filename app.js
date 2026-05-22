@@ -116,6 +116,25 @@
       "action.dismiss": "Dismiss",
       "action.edit": "Edit",
       "action.undismiss": "Undismiss",
+      "action.undo": "Undo",
+      // filter
+      "filter.title": "Filter by category",
+      "filter.uncategorized": "Uncategorized",
+      "filter.clear": "Clear filter",
+      // history
+      "tab.history": "History",
+      "history.didIt": "Marked done",
+      "history.dismissedIt": "Dismissed",
+      "history.deletedTask": "(deleted task)",
+      "empty.historyTitle": "No history yet",
+      "empty.historyBody": "Each time you mark a task done or dismiss one, it'll show up here.",
+      "time.today": "today",
+      "time.yesterday": "yesterday",
+      // task: per-task severity override
+      "task.severityHeader": "Severity (override)",
+      "task.useDefaultSeverity": "Use default severity levels",
+      "task.customSeverity": "Custom severity for this task",
+      "toast.undone": "Undone",
       // toasts
       "toast.created": "Task created",
       "toast.updated": "Task updated",
@@ -282,6 +301,22 @@
       "action.dismiss": "Udskyd",
       "action.edit": "Rediger",
       "action.undismiss": "Fortryd udskydning",
+      "action.undo": "Fortryd",
+      "filter.title": "Filtrer efter kategori",
+      "filter.uncategorized": "Uden kategori",
+      "filter.clear": "Ryd filter",
+      "tab.history": "Historik",
+      "history.didIt": "Markeret færdig",
+      "history.dismissedIt": "Udskudt",
+      "history.deletedTask": "(slettet opgave)",
+      "empty.historyTitle": "Ingen historik endnu",
+      "empty.historyBody": "Hver gang du markerer en opgave færdig eller udskyder en, vises den her.",
+      "time.today": "i dag",
+      "time.yesterday": "i går",
+      "task.severityHeader": "Alvorsniveauer (tilsidesæt)",
+      "task.useDefaultSeverity": "Brug standard alvorsniveauer",
+      "task.customSeverity": "Brugerdefinerede alvorsniveauer for denne opgave",
+      "toast.undone": "Fortrudt",
       "toast.created": "Opgave oprettet",
       "toast.updated": "Opgave opdateret",
       "toast.deleted": "Opgave slettet",
@@ -382,11 +417,46 @@
   ]);
 
   const ICON_SET = [
-    "💊","💉","🩺","🦷","❤️","🧘","🏃","🚴","🏋️","💪",
-    "🍎","🥗","💧","☕","🍽️",
-    "🧹","🧺","🪴","🌱","🏠","🛏️","🚿","🧴",
-    "💼","📚","✏️","🎯","📞","✉️","💰","🛠️","⚙️",
-    "🐾","🚗","🎵","🎨","☀️","🌙","✨","⭐","🎁","🧠",
+    // Health & body
+    "💊","💉","🩺","🩹","🩸","🦷","🪥","❤️","🫀","🧠","🦴","🧬","👁️","👂","🦻","🦶","🩻",
+    // Self-care & beauty
+    "🧴","🧼","🛀","🧖","💆","💇","💅","✂️","🪞",
+    // Mind & relax
+    "🧘","🕯️","☯️","🌸","🍃","🌿","🪷",
+    // Exercise & sport
+    "🏃","🚶","🚴","🏊","🏋️","💪","🤸","🧗","🤾","⛹️","🥊","🥋","🤺","🚵","🤽","🏌️","⛳",
+    "⚽","🏀","🏈","⚾","🎾","🏐","🏉","🥏","🏓","🏸","🥅","🎳","🛼","🛹","⛸️","🥌",
+    // Food
+    "🍎","🍌","🍇","🍊","🍓","🍒","🫐","🥝","🍑","🥭","🍉","🍍","🥥","🥑",
+    "🥗","🥦","🥕","🥬","🌽","🍅","🍄","🫑","🧅","🧄","🥔","🍠","🌶️",
+    "🍞","🥖","🥐","🥯","🧀","🥚","🥞","🧇","🥓","🍖","🍗","🥩","🌭","🍔","🍟","🍕","🥪","🌮","🌯","🥙","🍱","🍣","🍤","🍜","🍝","🍲","🥘","🍛",
+    "🍰","🎂","🧁","🍩","🍪","🍫","🍬","🍭","🍮","🍯",
+    // Drink
+    "💧","☕","🍵","🥤","🧃","🥛","🍶","🍷","🍺","🍻","🍸","🍹","🥂","🍾","🧉",
+    // Home / chores
+    "🏠","🛏️","🛋️","🪑","🚪","🪟","🪜","🛒","🧹","🧺","🧽","🧯","💡","🔌","🚿","🛁","🚽","🧻","🪴","🌱","🌷","💐","🪥","🧴",
+    // Repair / mechanic / tools
+    "🛠️","🔧","🔨","🪛","🪚","🔩","⚙️","🧰","🧲","⛓️","🪤","🪓",
+    // Vehicles & travel
+    "🚗","🚙","🚕","🚌","🚎","🚐","🛻","🚚","🚛","🚜","🏍️","🛵","🚲","🛴","🛹","✈️","🛫","🛬","🚀","🚁","⛵","🚤","🚢","🚆","🚇","🚞","⛽","🛞","🛣️",
+    // Work / productivity
+    "💼","📚","📖","✏️","🖋️","🖊️","📝","📋","📑","📌","📎","📊","📈","📉","💻","⌨️","🖱️","🖨️","🖥️","📱","☎️","📞","📠","📧","✉️","📨","📤","📥","📬","📮","💰","💳","🧾","💸","🪙",
+    // Hobbies & arts
+    "🎵","🎶","🎸","🎹","🎻","🎺","🎷","🥁","🪕","🎤","🎧","🎬","🎨","🖼️","🎭","🎲","🧩","♟️","📸","📷","📹","🎥","🪡","🧵","🧶","🪢",
+    // Outdoor & nature
+    "🌳","🌲","🌴","🌵","🌾","🌻","🌼","🌹","🌺","🍀","☘️","🌿","🍂","🍁","🌍","🌊","⛰️","🏔️","🗻","⛺","🏖️","🏕️","🧭","🔭","🔬",
+    // Animals / pets
+    "🐶","🐕","🐈","🐈‍⬛","🐹","🐰","🐢","🐦","🐣","🐠","🐟","🐝","🦋","🐾","🐎","🐄","🐑","🐓",
+    // Family & social
+    "👨‍👩‍👧","👨‍👩‍👦","👪","🧑","👶","🧒","👧","👦","🧑‍🤝‍🧑","👵","👴","🤝","💌","🎁","🎉","🎂","🎈","🎊","🥳","🍰","🎀",
+    // Events / dates / time
+    "📅","🗓️","⏰","⏳","🕐","📆","🎟️","🏷️",
+    // Letters & symbols
+    "📨","💌","✉️","📜","📰",
+    // Weather & sky
+    "☀️","🌤️","⛅","🌧️","⛈️","🌩️","❄️","☃️","🌙","⭐","✨","🔥","⚡","🌈","💫","🌟",
+    // Misc utility
+    "🎯","✅","📍","🔑","🗝️","🔒","🔓","🔔","🔕","💡","🧠","🤔","💭","💬","🗨️",
   ];
 
   /* ============================================================
@@ -457,7 +527,7 @@
      State + migration
      ============================================================ */
   const defaultState = () => ({
-    schemaVersion: 2,
+    schemaVersion: 3,
     onboardingDone: false,
     settings: {
       lang: (navigator.language || "en").toLowerCase().startsWith("da") ? "da" : "en",
@@ -466,8 +536,10 @@
     },
     severities: DEFAULT_SEVERITIES(),
     categories: [],   // user-defined: { id, name, color?, icon?, muted }
-    tasks: [],
+    tasks: [],        // tasks may have optional .severities (override) and .categoryId
     activeTab: "active",
+    filter: { categoryIds: [] },   // empty = no filter
+    history: [],                   // [{id, taskId, type:'done'|'dismiss', at, prev:{lastDoneAt,dismissedUntil,done}}]
     stats: { totalDone: 0 },
   });
 
@@ -479,14 +551,25 @@
       loaded.categories = [];
       loaded.schemaVersion = 2;
     }
+    // v2 → v3: rename labelKey "cat.*" → "severity.*"; init filter and history
+    const LABEL_MIGRATE = { "cat.reminder": "severity.reminder", "cat.warning": "severity.warning", "cat.critical": "severity.critical" };
+    if (loaded.severities) {
+      loaded.severities.forEach(sev => {
+        if (sev.labelKey && LABEL_MIGRATE[sev.labelKey]) sev.labelKey = LABEL_MIGRATE[sev.labelKey];
+      });
+    }
+    loaded.filter = loaded.filter || { categoryIds: [] };
+    loaded.history = loaded.history || [];
+    loaded.schemaVersion = 3;
     // Defensive defaults
     loaded.severities = loaded.severities || DEFAULT_SEVERITIES();
     loaded.categories = loaded.categories || [];
     loaded.stats = loaded.stats || { totalDone: 0 };
     loaded.tasks = loaded.tasks || [];
-    // Ensure category fields exist on tasks
+    // Ensure fields exist on tasks
     loaded.tasks.forEach(tk => {
       if (tk.categoryId === undefined) tk.categoryId = null;
+      if (tk.severities === undefined) tk.severities = null;
       tk.doneHistory = tk.doneHistory || [];
     });
     return loaded;
@@ -946,6 +1029,46 @@
     sel.value = current;
   }
 
+  // Per-task severity override (modal-local edit buffer)
+  let taskSeverityBuf = null; // null = use defaults; array = custom
+
+  function renderTaskSeverityEditor() {
+    const wrap = $("#taskSeverityEditor");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    if (!taskSeverityBuf) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    const sorted = [...taskSeverityBuf].sort((a, b) => a.threshold - b.threshold);
+    sorted.forEach(sev => {
+      const row = el("div", { class: "cat-row" });
+      const color = el("input", { type: "color", value: sev.color });
+      color.oninput = (e) => { sev.color = e.target.value; };
+      row.appendChild(color);
+      const label = el("input", { type: "text", value: severityLabel(sev), maxlength: 24 });
+      label.oninput = (e) => { sev.label = e.target.value; sev.labelKey = null; };
+      row.appendChild(label);
+      const pctWrap = el("div", { class: "pct-wrap" });
+      const num = el("input", { type: "number", min: 1, max: 1000, step: 1, value: sev.threshold });
+      num.oninput = (e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v > 0) sev.threshold = v; };
+      pctWrap.appendChild(num);
+      pctWrap.appendChild(el("span", {}, "%"));
+      row.appendChild(pctWrap);
+      const del = el("button", { class: "del", type: "button", "aria-label": "Delete", html: '<svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M6 7h12l-1 13H7L6 7Zm3-3h6v2H9V4Z"/></svg>' });
+      del.onclick = () => {
+        if (taskSeverityBuf.length <= 1) return;
+        taskSeverityBuf = taskSeverityBuf.filter(x => x.id !== sev.id);
+        renderTaskSeverityEditor();
+      };
+      row.appendChild(del);
+      wrap.appendChild(row);
+    });
+    const addRow = el("button", { class: "btn btn-ghost btn-block", type: "button", onclick: () => {
+      taskSeverityBuf.push({ id: cryptoId(), key: "custom", labelKey: null, label: "Custom", color: "#9B8CFF", threshold: 120 });
+      renderTaskSeverityEditor();
+    }}, t("severity.add"));
+    wrap.appendChild(addRow);
+  }
+
   function openTaskModal(task) {
     editingTaskId = task?.id || null;
     $("#taskModalTitle").textContent = t(task ? "task.edit" : "task.new");
@@ -956,6 +1079,11 @@
     $("#taskNotes").value = task?.notes || "";
     renderTaskCategoryOptions();
     $("#taskCategory").value = task?.categoryId || "";
+    // severity override buffer
+    taskSeverityBuf = task?.severities ? JSON.parse(JSON.stringify(task.severities)) : null;
+    const overrideChk = $("#taskOverrideSeverity");
+    if (overrideChk) overrideChk.checked = !!taskSeverityBuf;
+    renderTaskSeverityEditor();
     $("#deleteTaskBtn").hidden = !task;
     modal.hidden = false;
     setTimeout(() => $("#taskName").focus(), 60);
@@ -969,6 +1097,19 @@
     $("#emptyAddBtn").onclick = () => openTaskModal();
     $$("[data-close-modal]", modal).forEach(b => b.onclick = closeTaskModal);
 
+    const overrideChk = $("#taskOverrideSeverity");
+    if (overrideChk) {
+      overrideChk.onchange = () => {
+        if (overrideChk.checked) {
+          // Seed from current global severities
+          taskSeverityBuf = JSON.parse(JSON.stringify(state.severities));
+        } else {
+          taskSeverityBuf = null;
+        }
+        renderTaskSeverityEditor();
+      };
+    }
+
     $("#taskForm").onsubmit = (e) => {
       e.preventDefault();
       const name = $("#taskName").value.trim();
@@ -978,11 +1119,12 @@
       const recurring = $("#taskRecurring").checked;
       const notes = $("#taskNotes").value.trim();
       const categoryId = $("#taskCategory").value || null;
+      const severities = taskSeverityBuf ? JSON.parse(JSON.stringify(taskSeverityBuf)) : null;
 
       if (editingTaskId) {
         const tk = state.tasks.find(x => x.id === editingTaskId);
         if (tk) {
-          Object.assign(tk, { name, amount, unit, recurring, notes, categoryId });
+          Object.assign(tk, { name, amount, unit, recurring, notes, categoryId, severities });
           tk.lastNotifiedSev = null;
           toast(t("toast.updated"));
         }
@@ -991,6 +1133,7 @@
           id: cryptoId(),
           name, amount, unit, recurring, notes,
           categoryId,
+          severities,
           createdAt: Date.now(),
           lastDoneAt: null,
           dismissedUntil: 0,
@@ -1139,6 +1282,7 @@
   }
   function markDoneRaw(task) {
     const now = Date.now();
+    const prev = { lastDoneAt: task.lastDoneAt, dismissedUntil: task.dismissedUntil, done: task.done };
     task.doneHistory = task.doneHistory || [];
     task.doneHistory.push(now);
     task.lastDoneAt = now;
@@ -1147,6 +1291,7 @@
     if (!task.recurring) task.done = true;
     state.stats = state.stats || { totalDone: 0 };
     state.stats.totalDone += 1;
+    logHistory(task.id, "done", prev);
     save();
     celebrate(task);
     render();
@@ -1161,6 +1306,7 @@
   }
   function applyDismiss(task, ms) {
     const now = Date.now();
+    const prev = { lastDoneAt: task.lastDoneAt, dismissedUntil: task.dismissedUntil, done: task.done };
     if (ms === "untilDue") {
       task.lastDoneAt = now;
       task.dismissedUntil = now + intervalMs(task);
@@ -1169,6 +1315,7 @@
     }
     task.lastNotifiedSev = null;
     if (!task.recurring && ms === "untilDue") task.done = true;
+    logHistory(task.id, "dismiss", prev);
   }
   function undismiss(task) {
     task.dismissedUntil = 0;
@@ -1191,12 +1338,14 @@
     if (!ok) return;
     targets.forEach(tk => {
       const now = Date.now();
+      const prev = { lastDoneAt: tk.lastDoneAt, dismissedUntil: tk.dismissedUntil, done: tk.done };
       tk.doneHistory = tk.doneHistory || [];
       tk.doneHistory.push(now);
       tk.lastDoneAt = now;
       tk.dismissedUntil = 0;
       tk.lastNotifiedSev = null;
       if (!tk.recurring) tk.done = true;
+      logHistory(tk.id, "done", prev);
     });
     state.stats.totalDone += targets.length;
     save();
@@ -1274,6 +1423,105 @@
   }
 
   /* ============================================================
+     FILTER (global, applied across tabs)
+     ============================================================ */
+  function filteredTasks() {
+    const f = state.filter || { categoryIds: [] };
+    if (!f.categoryIds || f.categoryIds.length === 0) return state.tasks;
+    const set = new Set(f.categoryIds);
+    return state.tasks.filter(tk => {
+      if (set.has("__none__")) {
+        if (!tk.categoryId) return true;
+      }
+      return tk.categoryId && set.has(tk.categoryId);
+    });
+  }
+  function isFiltered() {
+    return (state.filter?.categoryIds || []).length > 0;
+  }
+  function renderFilterPanel() {
+    const panel = $("#filterPanel");
+    if (!panel) return;
+    const list = $("#filterCatList");
+    list.innerHTML = "";
+    const f = state.filter || { categoryIds: [] };
+    const sel = new Set(f.categoryIds || []);
+
+    // "Uncategorized" option
+    const uRow = el("label", { class: "filter-row" });
+    const uChk = el("input", { type: "checkbox" });
+    uChk.checked = sel.has("__none__");
+    uChk.onchange = () => {
+      const cur = new Set(state.filter.categoryIds);
+      if (uChk.checked) cur.add("__none__"); else cur.delete("__none__");
+      state.filter.categoryIds = Array.from(cur);
+      save();
+      renderFilterPanel();
+      render();
+      updateFilterBadge();
+    };
+    uRow.appendChild(uChk);
+    uRow.appendChild(el("span", { class: "filter-row-label muted" }, t("filter.uncategorized")));
+    list.appendChild(uRow);
+
+    state.categories.forEach(cat => {
+      const row = el("label", { class: "filter-row" });
+      const chk = el("input", { type: "checkbox" });
+      chk.checked = sel.has(cat.id);
+      chk.onchange = () => {
+        const cur = new Set(state.filter.categoryIds);
+        if (chk.checked) cur.add(cat.id); else cur.delete(cat.id);
+        state.filter.categoryIds = Array.from(cur);
+        save();
+        renderFilterPanel();
+        render();
+        updateFilterBadge();
+      };
+      row.appendChild(chk);
+      if (cat.icon) row.appendChild(el("span", { class: "filter-icon" }, cat.icon));
+      const swatch = el("span", { class: "filter-swatch" });
+      if (cat.color) swatch.style.background = cat.color;
+      row.appendChild(swatch);
+      row.appendChild(el("span", { class: "filter-row-label" }, categoryName(cat)));
+      list.appendChild(row);
+    });
+  }
+  function updateFilterBadge() {
+    const btn = $("#filterBtn");
+    if (!btn) return;
+    btn.classList.toggle("is-active", isFiltered());
+    const badge = $("#filterBadge");
+    if (badge) {
+      const n = (state.filter?.categoryIds || []).length;
+      badge.textContent = n > 0 ? String(n) : "";
+      badge.hidden = n === 0;
+    }
+  }
+  function bindFilter() {
+    $("#filterBtn").onclick = (e) => {
+      e.stopPropagation();
+      const p = $("#filterPanel");
+      const willShow = p.hidden;
+      p.hidden = !willShow;
+      if (willShow) renderFilterPanel();
+    };
+    $("#filterClear").onclick = () => {
+      state.filter.categoryIds = [];
+      save();
+      renderFilterPanel();
+      render();
+      updateFilterBadge();
+    };
+    document.addEventListener("click", (e) => {
+      const p = $("#filterPanel");
+      if (!p || p.hidden) return;
+      if (!p.contains(e.target) && e.target.id !== "filterBtn" && !$("#filterBtn").contains(e.target)) {
+        p.hidden = true;
+      }
+    });
+  }
+
+  /* ============================================================
      RENDER
      ============================================================ */
   function bindTabs() {
@@ -1287,11 +1535,13 @@
     });
     $$(".tab").forEach(tab => tab.classList.toggle("is-active", tab.dataset.tab === state.activeTab));
   }
-  function buildItems(now) {
-    return state.tasks.map(task => {
+  function buildItems(now, source) {
+    const tasks = source || filteredTasks();
+    return tasks.map(task => {
       const isDone = task.done && !task.recurring;
       const pct = elapsedPct(task, now);
-      const sev = !isDone ? activeSeverity(pct, state.severities) : null;
+      const sevList = effectiveSeverities(task);
+      const sev = !isDone ? activeSeverity(pct, sevList) : null;
       const due = dueAt(task);
       const remaining = due - now;
       const isDismissed = task.dismissedUntil && now < task.dismissedUntil;
@@ -1301,7 +1551,8 @@
   }
   function renderTask(item) {
     const { task, isDone, pct, sev, remaining, isDismissed, cat } = item;
-    const maxPct = Math.max(maxThreshold(state.severities), 150);
+    const sevList = effectiveSeverities(task);
+    const maxPct = Math.max(maxThreshold(sevList), 150);
     const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
     const stripeColor = sev ? sev.color : (cat?.color || "var(--text-faint)");
     const node = el("article", { class: "task" + (cat?.muted ? " is-muted" : ""), style: { "--cat-color": stripeColor } });
@@ -1325,6 +1576,9 @@
       ));
     } else if (!isDone && !isDismissed) {
       meta.appendChild(el("span", { class: "chip" }, t("status.upcoming")));
+    }
+    if (task.severities) {
+      meta.appendChild(el("span", { class: "chip chip-tiny", title: t("task.customSeverity") }, "⚙"));
     }
     meta.appendChild(el("span", {}, task.recurring ? t("status.recurring") : t("status.oneTime")));
     meta.appendChild(el("span", {}, "·"));
@@ -1355,24 +1609,75 @@
     node.appendChild(actions);
     return node;
   }
-  function renderSection(parent, titleKey, items) {
+  function renderSection(parent, titleText, items) {
     if (!items.length) return;
     parent.appendChild(el("div", { class: "section-head" },
-      el("span", {}, t(titleKey)),
+      el("span", {}, titleText),
       el("span", { class: "count" }, String(items.length))
     ));
     items.forEach(item => parent.appendChild(renderTask(item)));
   }
+
+  /* ============================================================
+     HISTORY rendering
+     ============================================================ */
+  function renderHistoryEvent(ev) {
+    const task = state.tasks.find(t2 => t2.id === ev.taskId);
+    const taskName = task ? task.name : t("history.deletedTask");
+    const node = el("article", { class: "history-event" });
+    const ico = el("span", { class: "hev-ico", "aria-hidden": "true" }, ev.type === "done" ? "✅" : "💤");
+    node.appendChild(ico);
+    const body = el("div", { class: "hev-body" });
+    body.appendChild(el("div", { class: "hev-title" }, taskName));
+    const sub = el("div", { class: "hev-sub muted small" });
+    sub.appendChild(document.createTextNode(t(ev.type === "done" ? "history.didIt" : "history.dismissedIt") + " · " + fmtTime(ev.at)));
+    body.appendChild(sub);
+    node.appendChild(body);
+    node.appendChild(el("button", {
+      class: "btn btn-ghost btn-sm",
+      onclick: () => undoEvent(ev),
+    }, t("action.undo")));
+    return node;
+  }
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    const sameYesterday = d.toDateString() === yesterday.toDateString();
+    const time = d.toLocaleTimeString(state.settings.lang, { hour: "2-digit", minute: "2-digit" });
+    if (sameDay) return t("time.today") + " " + time;
+    if (sameYesterday) return t("time.yesterday") + " " + time;
+    return d.toLocaleDateString(state.settings.lang, { year: "numeric", month: "short", day: "numeric" }) + " " + time;
+  }
+
+  /* ============================================================
+     RENDER root
+     ============================================================ */
   function render() {
     const now = Date.now();
-    const items = buildItems(now);
     const tab = state.activeTab;
     const container = $("#tasksList");
     container.innerHTML = "";
+    updateFilterBadge();
+
+    // HISTORY: independent rendering
+    if (tab === "history") {
+      const histAll = (state.history || []).slice().sort((a, b) => b.at - a.at);
+      // Apply filter: include only events whose task matches the filter (or task gone & filter all-tasks)
+      const allowed = new Set(filteredTasks().map(t2 => t2.id));
+      const hist = isFiltered() ? histAll.filter(ev => allowed.has(ev.taskId)) : histAll;
+      if (hist.length === 0) return showEmpty("empty.historyTitle", "empty.historyBody");
+      hideEmpty();
+      hist.forEach(ev => container.appendChild(renderHistoryEvent(ev)));
+      return;
+    }
+
+    const items = buildItems(now);
     let active = items.filter(i => !i.isDone && !i.isDismissed && i.sev);
     let upcoming = items.filter(i => !i.isDone && !i.isDismissed && !i.sev);
     let dismissed = items.filter(i => !i.isDone && i.isDismissed);
-    let done = items.filter(i => i.isDone);
+
     active.sort((a, b) => {
       const ta = a.sev?.threshold || 0;
       const tb = b.sev?.threshold || 0;
@@ -1381,28 +1686,44 @@
     });
     upcoming.sort((a, b) => a.remaining - b.remaining);
     dismissed.sort((a, b) => a.task.dismissedUntil - b.task.dismissedUntil);
-    done.sort((a, b) => (b.task.lastDoneAt || 0) - (a.task.lastDoneAt || 0));
+
     active.forEach(i => maybeNotify(i.task, i.sev));
+
     if (tab === "active") {
       if (active.length === 0) return showEmpty("empty.activeTitle", "empty.activeBody");
-      hideEmpty(); renderSection(container, "tab.active", active);
+      hideEmpty(); renderSection(container, t("tab.active"), active);
     } else if (tab === "upcoming") {
       if (upcoming.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
-      hideEmpty(); renderSection(container, "tab.upcoming", upcoming);
+      hideEmpty(); renderSection(container, t("tab.upcoming"), upcoming);
     } else if (tab === "dismissed") {
       if (dismissed.length === 0) return showEmpty("empty.dismissedTitle", "empty.dismissedBody");
-      hideEmpty(); renderSection(container, "tab.dismissed", dismissed);
-    } else if (tab === "done") {
-      if (done.length === 0) return showEmpty("empty.doneTitle", "empty.doneBody");
-      hideEmpty(); renderSection(container, "tab.done", done);
+      hideEmpty(); renderSection(container, t("tab.dismissed"), dismissed);
     } else {
-      if (active.length + upcoming.length + dismissed.length + done.length === 0)
-        return showEmpty("empty.title", "empty.body");
+      // "all": group by category, sort categories alphabetically, sort tasks alphabetically inside
+      const all = items.filter(i => !i.isDone); // all non-done
+      if (all.length === 0) return showEmpty("empty.title", "empty.body");
       hideEmpty();
-      renderSection(container, "tab.active", active);
-      renderSection(container, "tab.upcoming", upcoming);
-      renderSection(container, "tab.dismissed", dismissed);
-      renderSection(container, "tab.done", done);
+      const byCat = new Map(); // catId -> { cat, items[] }
+      all.forEach(i => {
+        const key = i.cat?.id || "__none__";
+        if (!byCat.has(key)) byCat.set(key, { cat: i.cat, items: [] });
+        byCat.get(key).items.push(i);
+      });
+      // Sort categories
+      const groups = Array.from(byCat.values()).sort((a, b) => {
+        if (!a.cat && b.cat) return 1;
+        if (a.cat && !b.cat) return -1;
+        const an = a.cat ? categoryName(a.cat) : "";
+        const bn = b.cat ? categoryName(b.cat) : "";
+        return an.localeCompare(bn, state.settings.lang);
+      });
+      groups.forEach(g => {
+        g.items.sort((a, b) => a.task.name.localeCompare(b.task.name, state.settings.lang));
+        const title = g.cat
+          ? (g.cat.icon ? g.cat.icon + " " : "") + categoryName(g.cat)
+          : t("filter.uncategorized");
+        renderSection(container, title, g.items);
+      });
     }
   }
   function showEmpty(titleKey, bodyKey) {
@@ -1414,6 +1735,54 @@
     e.querySelector("button").textContent = t("empty.cta");
   }
   function hideEmpty() { $("#emptyState").hidden = true; }
+
+  /* ============================================================
+     EFFECTIVE SEVERITY (per-task override aware)
+     ============================================================ */
+  function effectiveSeverities(task) {
+    return (task && task.severities && task.severities.length) ? task.severities : state.severities;
+  }
+
+  /* ============================================================
+     HISTORY logging + undo
+     ============================================================ */
+  function logHistory(taskId, type, prev) {
+    state.history = state.history || [];
+    state.history.unshift({
+      id: cryptoId(),
+      taskId,
+      type,
+      at: Date.now(),
+      prev,
+    });
+    if (state.history.length > 500) state.history.length = 500;
+  }
+  function undoEvent(ev) {
+    const task = state.tasks.find(t2 => t2.id === ev.taskId);
+    if (!task) {
+      state.history = state.history.filter(h => h.id !== ev.id);
+      save(); render();
+      return;
+    }
+    if (ev.prev) {
+      if ("lastDoneAt" in ev.prev) task.lastDoneAt = ev.prev.lastDoneAt;
+      if ("dismissedUntil" in ev.prev) task.dismissedUntil = ev.prev.dismissedUntil;
+      if ("done" in ev.prev) task.done = ev.prev.done;
+    }
+    if (ev.type === "done" && Array.isArray(task.doneHistory) && task.doneHistory.length) {
+      let bestIdx = -1, bestDelta = Infinity;
+      task.doneHistory.forEach((ts, i) => {
+        const d = Math.abs(ts - ev.at);
+        if (d < bestDelta) { bestDelta = d; bestIdx = i; }
+      });
+      if (bestIdx >= 0) task.doneHistory.splice(bestIdx, 1);
+      state.stats.totalDone = Math.max(0, (state.stats.totalDone || 0) - 1);
+    }
+    task.lastNotifiedSev = null;
+    state.history = state.history.filter(h => h.id !== ev.id);
+    save(); render();
+    toast(t("toast.undone"));
+  }
 
   /* ============================================================
      TOAST
@@ -1444,6 +1813,7 @@
     } else {
       onboarding.hidden = true;
       app.hidden = false;
+      updateFilterBadge();
       render();
     }
   }
@@ -1452,6 +1822,7 @@
     bindSettings();
     bindTaskModal();
     bindTabs();
+    bindFilter();
     startup();
     setInterval(() => { if (!app.hidden) render(); }, 30 * 1000);
     document.addEventListener("visibilitychange", () => {
@@ -1464,6 +1835,8 @@
         const n = $(sel);
         if (n && !n.hidden) { n.hidden = true; return; }
       }
+      const fp = $("#filterPanel");
+      if (fp && !fp.hidden) { fp.hidden = true; return; }
       if (!settingsDrawer.hidden) closeSettings();
     });
   }

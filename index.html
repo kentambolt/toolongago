@@ -20,10 +20,24 @@
       <img src="logo.svg" alt="" class="brand-logo" aria-hidden="true" />
       <h1 class="brand-name">TooLongAgo</h1>
     </div>
-    <button id="menuBtn" class="icon-btn" aria-label="Menu" title="Menu">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
-    </button>
+    <div class="topbar-actions">
+      <button id="filterBtn" class="icon-btn" aria-label="Filter" title="Filter">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+        <span id="filterBadge" class="badge" hidden></span>
+      </button>
+      <button id="menuBtn" class="icon-btn" aria-label="Menu" title="Menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+      </button>
+    </div>
   </header>
+
+  <div id="filterPanel" class="filter-panel" hidden>
+    <div class="filter-head">
+      <strong data-i18n="filter.title">Filter by category</strong>
+      <button class="btn btn-ghost btn-sm" id="filterClear" data-i18n="filter.clear">Clear filter</button>
+    </div>
+    <div id="filterCatList" class="filter-list"></div>
+  </div>
 
   <main class="main">
     <nav class="tabs" role="tablist">
@@ -31,7 +45,7 @@
       <button class="tab" data-tab="upcoming" role="tab" data-i18n="tab.upcoming">Upcoming</button>
       <button class="tab" data-tab="dismissed" role="tab" data-i18n="tab.dismissed">Dismissed</button>
       <button class="tab" data-tab="all" role="tab" data-i18n="tab.all">All</button>
-      <button class="tab" data-tab="done" role="tab" data-i18n="tab.done">Done</button>
+      <button class="tab" data-tab="history" role="tab" data-i18n="tab.history">History</button>
     </nav>
 
     <section id="tasksList" class="tasks" aria-live="polite"></section>
@@ -219,6 +233,15 @@
         <span data-i18n="task.notes">Notes (optional)</span>
         <textarea id="taskNotes" rows="2" maxlength="280"></textarea>
       </label>
+
+      <div class="field">
+        <label class="toggle-field">
+          <input type="checkbox" id="taskOverrideSeverity" />
+          <span class="toggle-slider"></span>
+          <span class="toggle-label" data-i18n="task.customSeverity">Custom severity for this task</span>
+        </label>
+        <div id="taskSeverityEditor" class="cat-list" hidden></div>
+      </div>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-danger btn-ghost" id="deleteTaskBtn" hidden data-i18n="task.delete">Delete</button>

@@ -1,0 +1,20 @@
+# Node (only present when running local jsdom tests)
+node_modules/
+package.json
+package-lock.json
+
+# Backups & editor junk
+*.bak
+*.tmp
+*.swp
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local test scaffolding
+_e2e_test.js
+e2e*.js
+probe*.js
