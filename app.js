@@ -21,7 +21,7 @@
       name: "English", native: "English",
       // tabs
       "tab.active": "Active",
-      "tab.upcoming": "Upcoming",
+      "tab.upcoming": "Soon",
       "tab.dismissed": "Dismissed",
       "tab.all": "All",
       "tab.done": "Done",
@@ -153,6 +153,12 @@
       "toast.unmuted": "Category unmuted",
       // dialogs
       "confirm.ok": "Confirm",
+      "confirm.undismissTitle": "Bring this back?",
+      "confirm.undismissBody": "\"{name}\" will return to your active list.",
+      "confirm.undismissOk": "Bring back",
+      "confirm.undoTitle": "Undo this action?",
+      "confirm.undoBody": "{action} for \"{name}\" will be reversed.",
+      "confirm.undoOk": "Undo",
       "confirm.markDoneTitle": "Mark this done?",
       "confirm.markDoneBody": "We'll reset the timer for \"{name}\".",
       "confirm.markDoneOk": "Yes, done!",
@@ -223,7 +229,7 @@
     da: {
       name: "Danish", native: "Dansk",
       "tab.active": "Aktive",
-      "tab.upcoming": "Kommende",
+      "tab.upcoming": "Snart",
       "tab.dismissed": "Udskudte",
       "tab.all": "Alle",
       "tab.done": "Færdige",
@@ -341,6 +347,12 @@
       "toast.muted": "Kategori dæmpet",
       "toast.unmuted": "Kategori aktiv igen",
       "confirm.ok": "Bekræft",
+      "confirm.undismissTitle": "Hent tilbage?",
+      "confirm.undismissBody": "\"{name}\" vender tilbage til din aktive liste.",
+      "confirm.undismissOk": "Hent tilbage",
+      "confirm.undoTitle": "Fortryd denne handling?",
+      "confirm.undoBody": "{action} for \"{name}\" bliver fortrudt.",
+      "confirm.undoOk": "Fortryd",
       "confirm.markDoneTitle": "Marker som færdig?",
       "confirm.markDoneBody": "Vi nulstiller uret for \"{name}\".",
       "confirm.markDoneOk": "Ja, færdig!",
@@ -556,6 +568,7 @@
     activeTab: "active",
     filter: { categoryIds: [] },   // empty = no filter
     history: [],                   // [{id, taskId, type:'done'|'dismiss', at, prev:{lastDoneAt,dismissedUntil,done}}]
+    collapsedCats: [],             // category ids collapsed in the All tab; "__none__" for uncategorized
     stats: { totalDone: 0 },
   });
 
@@ -571,6 +584,21 @@
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch (e) { console.warn("Save failed:", e); }
+  }
+
+  // Single helper to call after any state mutation: persists, re-renders the main view,
+  // and re-renders any auxiliary panels that may be open.
+  function commit() {
+    save();
+    if (!app.hidden) render();
+    if (!settingsDrawer.hidden) {
+      renderSeverityEditor($("#settingsSeverities"));
+      renderCategoryEditor($("#settingsCategories"));
+    }
+    const fp = $("#filterPanel");
+    if (fp && !fp.hidden) renderFilterPanel();
+    updateFilterBadge();
+    renderTaskCategoryOptions();
   }
 
   let state = load() || defaultState();
@@ -948,15 +976,30 @@
     const cat = task.categoryId ? state.categories.find(c => c.id === task.categoryId) : null;
     if (cat && cat.muted) return;
     if (task.lastNotifiedSev === sev.id) return;
-    try {
-      new Notification(t("notif.title"), {
-        body: t("notif.bodyOne", { name: task.name, level: severityLabel(sev) }),
-        icon: "favicon.svg",
-        tag: task.id + ":" + sev.id,
-      });
-      task.lastNotifiedSev = sev.id;
-      save();
-    } catch (e) { /* ignore */ }
+    const title = t("notif.title");
+    const opts = {
+      body: t("notif.bodyOne", { name: task.name, level: severityLabel(sev) }),
+      icon: "favicon.svg",
+      badge: "favicon.svg",
+      tag: task.id + ":" + sev.id,
+      renotify: false,
+    };
+    // Mobile Chrome only supports notifications via ServiceWorkerRegistration.showNotification.
+    // Use SW path when available; fall back to legacy Notification constructor on desktop.
+    const showViaSW = () => swReg && swReg.showNotification(title, opts);
+    const showLegacy = () => { try { new Notification(title, opts); } catch (_) {} };
+    if (swReg) {
+      showViaSW().catch(showLegacy);
+    } else if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => {
+        swReg = reg;
+        reg.showNotification(title, opts).catch(showLegacy);
+      }).catch(showLegacy);
+    } else {
+      showLegacy();
+    }
+    task.lastNotifiedSev = sev.id;
+    save();
   }
 
   /* ============================================================
@@ -1348,7 +1391,13 @@
     if (!task.recurring && ms === "untilDue") task.done = true;
     logHistory(task.id, "dismiss", prev);
   }
-  function undismiss(task) {
+  async function undismiss(task) {
+    const ok = await confirmDialog({
+      title: t("confirm.undismissTitle"),
+      body: t("confirm.undismissBody", { name: task.name }),
+      confirmText: t("confirm.undismissOk"),
+    });
+    if (!ok) return;
     task.dismissedUntil = 0;
     save();
     render();
@@ -1749,11 +1798,35 @@
       });
       groups.forEach(g => {
         g.items.sort((a, b) => a.task.name.localeCompare(b.task.name, state.settings.lang));
+        const key = g.cat?.id || "__none__";
         const title = g.cat
           ? (g.cat.icon ? g.cat.icon + " " : "") + categoryName(g.cat)
           : t("filter.uncategorized");
-        renderSection(container, title, g.items);
+        renderCollapsibleSection(container, key, title, g.items);
       });
+    }
+  }
+  function renderCollapsibleSection(parent, key, titleText, items) {
+    if (!items.length) return;
+    const collapsed = (state.collapsedCats || []).includes(key);
+    const head = el("button", {
+      class: "section-head section-head-toggle" + (collapsed ? " is-collapsed" : ""),
+      type: "button",
+      "aria-expanded": collapsed ? "false" : "true",
+      onclick: () => {
+        state.collapsedCats = state.collapsedCats || [];
+        if (collapsed) state.collapsedCats = state.collapsedCats.filter(k => k !== key);
+        else state.collapsedCats.push(key);
+        save();
+        render();
+      },
+    });
+    head.appendChild(el("span", { class: "chev", "aria-hidden": "true" }, "▾"));
+    head.appendChild(el("span", { class: "section-title" }, titleText));
+    head.appendChild(el("span", { class: "count" }, String(items.length)));
+    parent.appendChild(head);
+    if (!collapsed) {
+      items.forEach(item => parent.appendChild(renderTask(item)));
     }
   }
   function showEmpty(titleKey, bodyKey) {
@@ -1786,8 +1859,16 @@
     });
     if (state.history.length > 500) state.history.length = 500;
   }
-  function undoEvent(ev) {
+  async function undoEvent(ev) {
     const task = state.tasks.find(t2 => t2.id === ev.taskId);
+    const actionLabel = t(ev.type === "done" ? "history.didIt" : "history.dismissedIt");
+    const name = task ? task.name : t("history.deletedTask");
+    const ok = await confirmDialog({
+      title: t("confirm.undoTitle"),
+      body: t("confirm.undoBody", { action: actionLabel, name }),
+      confirmText: t("confirm.undoOk"),
+    });
+    if (!ok) return;
     if (!task) {
       state.history = state.history.filter(h => h.id !== ev.id);
       save(); render();
@@ -1846,12 +1927,20 @@
       render();
     }
   }
+  let swReg = null;
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      swReg = reg;
+    }).catch(err => console.warn("SW registration failed:", err));
+  }
   function init() {
     bindOnboarding();
     bindSettings();
     bindTaskModal();
     bindTabs();
     bindFilter();
+    registerServiceWorker();
     startup();
     setInterval(() => { if (!app.hidden) render(); }, 30 * 1000);
     document.addEventListener("visibilitychange", () => {

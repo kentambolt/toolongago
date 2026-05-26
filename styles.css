@@ -1119,3 +1119,32 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   color: var(--text);
   width: 100%;
 }
+
+/* ---------- Collapsible section header (All tab) ---------- */
+.section-head-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  padding: 14px 4px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.section-head-toggle:hover { color: var(--text-dim); }
+.section-head-toggle .chev {
+  display: inline-block;
+  font-size: 14px;
+  transition: transform .18s ease;
+  color: var(--text-dim);
+}
+.section-head-toggle.is-collapsed .chev {
+  transform: rotate(-90deg);
+}
+.section-head-toggle .section-title { flex: 1; }
