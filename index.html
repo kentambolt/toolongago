@@ -42,8 +42,8 @@
   <main class="main">
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-tab="active" role="tab" data-i18n="tab.active">Active</button>
-      <button class="tab" data-tab="upcoming" role="tab" data-i18n="tab.upcoming">Upcoming</button>
-      <button class="tab" data-tab="dismissed" role="tab" data-i18n="tab.dismissed">Dismissed</button>
+      <button class="tab" data-tab="upcoming" role="tab" data-i18n="tab.upcoming">Soon</button>
+      <button class="tab" data-tab="percent" role="tab" data-i18n="tab.percent">%</button>
       <button class="tab" data-tab="all" role="tab" data-i18n="tab.all">All</button>
       <button class="tab" data-tab="history" role="tab" data-i18n="tab.history">History</button>
     </nav>
@@ -203,9 +203,19 @@
         <input type="text" id="taskName" required maxlength="80" autocomplete="off" placeholder="" />
       </label>
 
-      <fieldset class="field field-row">
+      <label class="field">
+        <span data-i18n="task.scheduleType">Schedule</span>
+        <select id="taskScheduleType">
+          <option value="interval" selected data-i18n="sched.interval">Every X time</option>
+          <option value="daily" data-i18n="sched.daily">Daily</option>
+          <option value="weekly" data-i18n="sched.weekly">Weekly on…</option>
+          <option value="monthly" data-i18n="sched.monthly">Monthly on…</option>
+        </select>
+      </label>
+
+      <fieldset class="field field-row" id="taskIntervalRow">
         <legend data-i18n="task.remindAfter">Remind me after</legend>
-        <input type="number" id="taskAmount" min="1" step="1" value="1" required />
+        <input type="number" id="taskAmount" min="1" step="1" value="1" />
         <select id="taskUnit">
           <option value="minute" data-i18n="unit.minute">minute(s)</option>
           <option value="hour" data-i18n="unit.hour">hour(s)</option>
@@ -214,6 +224,23 @@
           <option value="month" data-i18n="unit.month">month(s)</option>
           <option value="year" data-i18n="unit.year">year(s)</option>
         </select>
+      </fieldset>
+
+      <fieldset class="field" id="taskDailyRow" hidden>
+        <legend data-i18n="sched.timeLabel">Time of day</legend>
+        <input type="time" id="taskDailyTime" value="09:00" />
+      </fieldset>
+
+      <fieldset class="field" id="taskWeeklyRow" hidden>
+        <legend data-i18n="sched.weeklyLabel">Days &amp; time</legend>
+        <div id="taskWeeklyDays" class="dow-row"></div>
+        <input type="time" id="taskWeeklyTime" value="09:00" />
+      </fieldset>
+
+      <fieldset class="field field-row" id="taskMonthlyRow" hidden>
+        <legend data-i18n="sched.monthlyLabel">Day of month &amp; time</legend>
+        <input type="number" id="taskMonthlyDay" min="1" max="31" value="1" />
+        <input type="time" id="taskMonthlyTime" value="09:00" />
       </fieldset>
 
       <label class="field toggle-field">

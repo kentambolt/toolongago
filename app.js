@@ -23,6 +23,9 @@
       "tab.active": "Active",
       "tab.upcoming": "Soon",
       "tab.dismissed": "Dismissed",
+      "tab.percent": "%",
+      "empty.percentTitle": "Nothing to track",
+      "empty.percentBody": "When you have tasks running, they'll line up here by how close they are to their deadline.",
       "tab.all": "All",
       "tab.done": "Done",
       // empty
@@ -74,6 +77,21 @@
       "task.edit": "Edit task",
       "task.name": "What is it?",
       "task.remindAfter": "Remind me after",
+      "task.scheduleType": "Schedule",
+      "sched.interval": "Every X time",
+      "sched.daily": "Daily",
+      "sched.weekly": "Weekly on…",
+      "sched.monthly": "Monthly on…",
+      "sched.timeLabel": "Time of day",
+      "sched.weeklyLabel": "Days & time",
+      "sched.monthlyLabel": "Day of month & time",
+      "dow.mon": "Mon",
+      "dow.tue": "Tue",
+      "dow.wed": "Wed",
+      "dow.thu": "Thu",
+      "dow.fri": "Fri",
+      "dow.sat": "Sat",
+      "dow.sun": "Sun",
       "task.recurring": "Recurring (repeats after I mark it done)",
       "task.category": "Category (optional)",
       "task.noCategory": "No category",
@@ -231,6 +249,9 @@
       "tab.active": "Aktive",
       "tab.upcoming": "Snart",
       "tab.dismissed": "Udskudte",
+      "tab.percent": "%",
+      "empty.percentTitle": "Intet at følge",
+      "empty.percentBody": "Når du har kørende opgaver, vises de her sorteret efter hvor tæt de er på deres frist.",
       "tab.all": "Alle",
       "tab.done": "Færdige",
       "empty.title": "Intet her endnu",
@@ -278,6 +299,21 @@
       "task.edit": "Rediger opgave",
       "task.name": "Hvad drejer det sig om?",
       "task.remindAfter": "Mind mig om det efter",
+      "task.scheduleType": "Tidsplan",
+      "sched.interval": "Hver X tid",
+      "sched.daily": "Dagligt",
+      "sched.weekly": "Ugentligt på…",
+      "sched.monthly": "Månedligt på…",
+      "sched.timeLabel": "Tidspunkt",
+      "sched.weeklyLabel": "Dage & tid",
+      "sched.monthlyLabel": "Dag i måneden & tid",
+      "dow.mon": "Man",
+      "dow.tue": "Tir",
+      "dow.wed": "Ons",
+      "dow.thu": "Tor",
+      "dow.fri": "Fre",
+      "dow.sat": "Lør",
+      "dow.sun": "Søn",
       "task.recurring": "Gentages (starter forfra når jeg markerer som færdig)",
       "task.category": "Kategori (valgfri)",
       "task.noCategory": "Ingen kategori",
@@ -496,14 +532,53 @@
     return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
   function intervalMs(t) { return (t.amount || 0) * (UNIT_MS[t.unit] || UNIT_MS.day); }
+
+  // Returns the next-due timestamp for a task, supporting interval and calendar schedules.
   function dueAt(task) {
+    const type = task.scheduleType || "interval";
     const base = task.lastDoneAt || task.createdAt;
+    if (type === "interval") {
+      return base + intervalMs(task);
+    }
+    const [hh, mm] = (task.scheduleTime || "09:00").split(":").map(Number);
+    if (type === "daily") {
+      const d = new Date(base);
+      d.setHours(hh, mm, 0, 0);
+      if (d.getTime() <= base) d.setDate(d.getDate() + 1);
+      return d.getTime();
+    }
+    if (type === "weekly") {
+      const days = (task.scheduleDays && task.scheduleDays.length) ? task.scheduleDays : [1, 2, 3, 4, 5, 6, 0];
+      const d = new Date(base);
+      d.setHours(hh, mm, 0, 0);
+      // Walk forward day by day; advance at least once if base already passed today's time
+      if (d.getTime() <= base) d.setDate(d.getDate() + 1);
+      else if (!days.includes(d.getDay())) d.setDate(d.getDate() + 1);
+      for (let i = 0; i < 8; i++) {
+        if (days.includes(d.getDay()) && d.getTime() > base) return d.getTime();
+        d.setDate(d.getDate() + 1);
+      }
+      return d.getTime();
+    }
+    if (type === "monthly") {
+      const day = Math.max(1, Math.min(31, task.scheduleDay || 1));
+      const d = new Date(base);
+      d.setHours(hh, mm, 0, 0);
+      d.setDate(day);
+      while (d.getTime() <= base) {
+        d.setMonth(d.getMonth() + 1);
+        d.setDate(day);
+      }
+      return d.getTime();
+    }
     return base + intervalMs(task);
   }
+
   function elapsedPct(task, now) {
     const base = task.lastDoneAt || task.createdAt;
-    const span = intervalMs(task);
-    if (!span) return 0;
+    const due = dueAt(task);
+    const span = due - base;
+    if (span <= 0) return 0;
     return ((now - base) / span) * 100;
   }
   function activeSeverity(pct, severities) {
@@ -1095,17 +1170,67 @@
     wrap.appendChild(addRow);
   }
 
+  function renderWeeklyDays(selectedDays) {
+    const wrap = $("#taskWeeklyDays");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    // Mon-Sun order in UI; getDay() returns 0=Sun..6=Sat
+    const order = [
+      { val: 1, key: "dow.mon" },
+      { val: 2, key: "dow.tue" },
+      { val: 3, key: "dow.wed" },
+      { val: 4, key: "dow.thu" },
+      { val: 5, key: "dow.fri" },
+      { val: 6, key: "dow.sat" },
+      { val: 0, key: "dow.sun" },
+    ];
+    const set = new Set(selectedDays);
+    order.forEach(o => {
+      const btn = el("button", {
+        type: "button",
+        class: "dow-btn" + (set.has(o.val) ? " is-active" : ""),
+        "data-day": String(o.val),
+        onclick: () => {
+          if (set.has(o.val)) set.delete(o.val); else set.add(o.val);
+          btn.classList.toggle("is-active");
+        },
+      }, t(o.key));
+      wrap.appendChild(btn);
+    });
+  }
+
+  function getSelectedWeeklyDays() {
+    return Array.from($$("#taskWeeklyDays .dow-btn.is-active")).map(b => parseInt(b.dataset.day, 10));
+  }
+
+  function applyScheduleVisibility(type) {
+    $("#taskIntervalRow").hidden = type !== "interval";
+    $("#taskDailyRow").hidden = type !== "daily";
+    $("#taskWeeklyRow").hidden = type !== "weekly";
+    $("#taskMonthlyRow").hidden = type !== "monthly";
+  }
+
   function openTaskModal(task) {
     editingTaskId = task?.id || null;
     $("#taskModalTitle").textContent = t(task ? "task.edit" : "task.new");
     $("#taskName").value = task?.name || "";
-    $("#taskAmount").value = task?.amount ?? 1;
-    $("#taskUnit").value = task?.unit || "day";
     $("#taskRecurring").checked = task ? !!task.recurring : true;
     $("#taskNotes").value = task?.notes || "";
     renderTaskCategoryOptions();
     $("#taskCategory").value = task?.categoryId || "";
-    // severity override buffer
+
+    // Schedule
+    const type = task?.scheduleType || "interval";
+    $("#taskScheduleType").value = type;
+    $("#taskAmount").value = task?.amount ?? 1;
+    $("#taskUnit").value = task?.unit || "day";
+    $("#taskDailyTime").value = (type === "daily" && task?.scheduleTime) || task?.scheduleTime || "09:00";
+    $("#taskWeeklyTime").value = (type === "weekly" && task?.scheduleTime) || task?.scheduleTime || "09:00";
+    $("#taskMonthlyTime").value = (type === "monthly" && task?.scheduleTime) || task?.scheduleTime || "09:00";
+    $("#taskMonthlyDay").value = task?.scheduleDay || 1;
+    renderWeeklyDays(task?.scheduleDays || [1, 2, 3, 4, 5]);
+    applyScheduleVisibility(type);
+
     taskSeverityBuf = task?.severities ? JSON.parse(JSON.stringify(task.severities)) : null;
     const overrideChk = $("#taskOverrideSeverity");
     if (overrideChk) overrideChk.checked = !!taskSeverityBuf;
@@ -1127,7 +1252,6 @@
     if (overrideChk) {
       overrideChk.onchange = () => {
         if (overrideChk.checked) {
-          // Seed from current global severities
           taskSeverityBuf = JSON.parse(JSON.stringify(state.severities));
         } else {
           taskSeverityBuf = null;
@@ -1136,28 +1260,58 @@
       };
     }
 
+    const schedSel = $("#taskScheduleType");
+    if (schedSel) {
+      schedSel.onchange = () => applyScheduleVisibility(schedSel.value);
+    }
+
     $("#taskForm").onsubmit = (e) => {
       e.preventDefault();
       const name = $("#taskName").value.trim();
       if (!name) return;
-      const amount = Math.max(1, parseInt($("#taskAmount").value, 10) || 1);
-      const unit = $("#taskUnit").value;
       const recurring = $("#taskRecurring").checked;
       const notes = $("#taskNotes").value.trim();
       const categoryId = $("#taskCategory").value || null;
       const severities = taskSeverityBuf ? JSON.parse(JSON.stringify(taskSeverityBuf)) : null;
 
+      const scheduleType = $("#taskScheduleType").value;
+      const schedule = { scheduleType };
+      if (scheduleType === "interval") {
+        schedule.amount = Math.max(1, parseInt($("#taskAmount").value, 10) || 1);
+        schedule.unit = $("#taskUnit").value;
+        schedule.scheduleTime = null;
+        schedule.scheduleDays = null;
+        schedule.scheduleDay = null;
+      } else if (scheduleType === "daily") {
+        schedule.scheduleTime = $("#taskDailyTime").value || "09:00";
+        // Keep amount/unit for human-readable fallbacks
+        schedule.amount = 1; schedule.unit = "day";
+        schedule.scheduleDays = null;
+        schedule.scheduleDay = null;
+      } else if (scheduleType === "weekly") {
+        const days = getSelectedWeeklyDays();
+        schedule.scheduleDays = days.length ? days : [1, 2, 3, 4, 5];
+        schedule.scheduleTime = $("#taskWeeklyTime").value || "09:00";
+        schedule.amount = 7; schedule.unit = "day";
+        schedule.scheduleDay = null;
+      } else if (scheduleType === "monthly") {
+        schedule.scheduleDay = Math.max(1, Math.min(31, parseInt($("#taskMonthlyDay").value, 10) || 1));
+        schedule.scheduleTime = $("#taskMonthlyTime").value || "09:00";
+        schedule.amount = 1; schedule.unit = "month";
+        schedule.scheduleDays = null;
+      }
+
       if (editingTaskId) {
         const tk = state.tasks.find(x => x.id === editingTaskId);
         if (tk) {
-          Object.assign(tk, { name, amount, unit, recurring, notes, categoryId, severities });
+          Object.assign(tk, { name, recurring, notes, categoryId, severities }, schedule);
           tk.lastNotifiedSev = null;
           toast(t("toast.updated"));
         }
       } else {
-        state.tasks.push({
+        state.tasks.push(Object.assign({
           id: cryptoId(),
-          name, amount, unit, recurring, notes,
+          name, recurring, notes,
           categoryId,
           severities,
           createdAt: Date.now(),
@@ -1166,7 +1320,7 @@
           lastNotifiedSev: null,
           doneHistory: [],
           done: false,
-        });
+        }, schedule));
         toast(t("toast.created"));
       }
       save();
@@ -1604,6 +1758,8 @@
      RENDER
      ============================================================ */
   function bindTabs() {
+    // Coerce legacy "dismissed" tab selection to "active"
+    if (state.activeTab === "dismissed") state.activeTab = "active";
     $$(".tab").forEach(tab => {
       tab.onclick = () => {
         state.activeTab = tab.dataset.tab;
@@ -1753,9 +1909,10 @@
     }
 
     const items = buildItems(now);
-    let active = items.filter(i => !i.isDone && !i.isDismissed && i.sev);
-    let upcoming = items.filter(i => !i.isDone && !i.isDismissed && !i.sev);
-    let dismissed = items.filter(i => !i.isDone && i.isDismissed);
+    // Dismissed tasks are hidden from all live views; they appear in History where they can be undone.
+    const live = items.filter(i => !i.isDone && !i.isDismissed);
+    let active = live.filter(i => i.sev);
+    let upcoming = live.filter(i => !i.sev);
 
     active.sort((a, b) => {
       const ta = a.sev?.threshold || 0;
@@ -1764,7 +1921,6 @@
       return b.pct - a.pct;
     });
     upcoming.sort((a, b) => a.remaining - b.remaining);
-    dismissed.sort((a, b) => a.task.dismissedUntil - b.task.dismissedUntil);
 
     active.forEach(i => maybeNotify(i.task, i.sev));
 
@@ -1774,12 +1930,14 @@
     } else if (tab === "upcoming") {
       if (upcoming.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
       hideEmpty(); renderSection(container, t("tab.upcoming"), upcoming);
-    } else if (tab === "dismissed") {
-      if (dismissed.length === 0) return showEmpty("empty.dismissedTitle", "empty.dismissedBody");
-      hideEmpty(); renderSection(container, t("tab.dismissed"), dismissed);
+    } else if (tab === "percent") {
+      // Sort by elapsed-percentage descending — closer to deadline relative to its own cycle wins.
+      const sorted = [...live].sort((a, b) => b.pct - a.pct);
+      if (sorted.length === 0) return showEmpty("empty.percentTitle", "empty.percentBody");
+      hideEmpty(); renderSection(container, t("tab.percent"), sorted);
     } else {
       // "all": group by category, sort categories alphabetically, sort tasks alphabetically inside
-      const all = items.filter(i => !i.isDone); // all non-done
+      const all = live;
       if (all.length === 0) return showEmpty("empty.title", "empty.body");
       hideEmpty();
       const byCat = new Map(); // catId -> { cat, items[] }
@@ -1838,6 +1996,7 @@
     e.querySelector("button").textContent = t("empty.cta");
   }
   function hideEmpty() { $("#emptyState").hidden = true; }
+
 
   /* ============================================================
      EFFECTIVE SEVERITY (per-task override aware)

@@ -1,24 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="tlaGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#FFB37A"/>
       <stop offset="100%" stop-color="#F26B5E"/>
     </linearGradient>
-    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#2A3550"/>
-      <stop offset="100%" stop-color="#1B2238"/>
-    </linearGradient>
   </defs>
-  <!-- Frame -->
-  <rect x="14" y="6" width="36" height="4" rx="2" fill="url(#glass)"/>
-  <rect x="14" y="54" width="36" height="4" rx="2" fill="url(#glass)"/>
-  <!-- Glass body -->
-  <path d="M18 10 L46 10 L46 16 C46 22 36 28 36 32 C36 36 46 42 46 48 L46 54 L18 54 L18 48 C18 42 28 36 28 32 C28 28 18 22 18 16 Z"
-        stroke="url(#glass)" stroke-width="2.2" fill="rgba(255,255,255,0.06)"/>
-  <!-- Top sand -->
-  <path d="M21 13 L43 13 L43 16 C43 20 36 25 32 28 C28 25 21 20 21 16 Z" fill="url(#sand)"/>
-  <!-- Falling grain -->
-  <rect x="31.3" y="29" width="1.4" height="6" rx="0.7" fill="url(#sand)"/>
-  <!-- Bottom sand pile -->
-  <path d="M21 51 L43 51 L43 48 C43 44 36 41 32 39 C28 41 21 44 21 48 Z" fill="url(#sand)"/>
+  <path d="M16 10 H48 L32 32 L48 54 H16 L32 32 Z" fill="url(#tlaGrad)"/>
 </svg>

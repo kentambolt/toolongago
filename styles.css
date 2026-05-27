@@ -1148,3 +1148,35 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   transform: rotate(-90deg);
 }
 .section-head-toggle .section-title { flex: 1; }
+
+/* ---------- Day-of-week selector (weekly schedule) ---------- */
+.dow-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.dow-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 8px;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.dow-btn:hover { color: var(--text); border-color: var(--brand-2); }
+.dow-btn.is-active {
+  background: color-mix(in srgb, var(--brand-2) 18%, var(--surface-2));
+  border-color: var(--brand-2);
+  color: var(--text);
+}
+#taskDailyTime, #taskWeeklyTime, #taskMonthlyTime, #taskMonthlyDay {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text);
+}
