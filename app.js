@@ -2087,11 +2087,43 @@
     }
   }
   let swReg = null;
+  let reloadingForUpdate = false;
   function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("sw.js").then(reg => {
-      swReg = reg;
-    }).catch(err => console.warn("SW registration failed:", err));
+
+    // updateViaCache: "none" makes the browser bypass HTTP cache when checking sw.js itself.
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" })
+      .then(reg => {
+        swReg = reg;
+        // Hook installing workers so we can ask them to take over the moment they install.
+        const watch = (worker) => {
+          if (!worker) return;
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "installed" && navigator.serviceWorker.controller) {
+              // A new SW has installed and is waiting because an old one still controls us.
+              // Tell it to skip waiting; controllerchange below will reload the page.
+              worker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        };
+        watch(reg.waiting);
+        reg.addEventListener("updatefound", () => watch(reg.installing));
+
+        // Re-check for an updated sw.js on a schedule and when the user returns to the app.
+        const checkForUpdate = () => { try { reg.update(); } catch (_) {} };
+        checkForUpdate();
+        setInterval(checkForUpdate, 30 * 60 * 1000);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) checkForUpdate();
+        });
+      })
+      .catch(err => console.warn("SW registration failed:", err));
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      window.location.reload();
+    });
   }
   function init() {
     bindOnboarding();
