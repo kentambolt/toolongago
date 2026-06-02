@@ -232,10 +232,21 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
 }
 .task:hover { box-shadow: var(--shadow-soft); }
 /* When a task has a category (or severity fallback), accent the left edge with that color.
-   Using an actual border-left lets border-radius round the corners naturally — no clipping artifacts. */
+   The left corners are squared off so the colored bar reads as a clean tab rather than a thin curve. */
 .task.has-accent {
-  border-left: 4px solid var(--cat-color, var(--border));
-  padding-left: 11px;
+  border-left: 6px solid var(--cat-color, var(--border));
+  padding-left: 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+/* Extra emphasis: a subtle tint on the card so the category is felt, not just glimpsed. */
+.task.has-accent::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  background: linear-gradient(to right, color-mix(in srgb, var(--cat-color) 14%, transparent), transparent);
 }
 /* Legacy element kept for backward compatibility; hidden if any remain. */
 .task-stripe { display: none; }
@@ -251,6 +262,37 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   font-size: 16px;
   line-height: 1.3;
   word-break: break-word;
+  min-width: 0;
+}
+/* Tab-aware status badge in the top-right of the task card. */
+.task-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.task-status-soon {
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+.task-status-due {
+  background: color-mix(in srgb, #F2A93B 18%, transparent);
+  color: #F2A93B;
+}
+.task-status-overdue {
+  background: color-mix(in srgb, #E5484D 18%, transparent);
+  color: #E5484D;
+}
+.task-status-neutral {
+  background: var(--surface-2);
+  color: var(--text-faint);
 }
 .task-notes {
   padding-left: 6px;

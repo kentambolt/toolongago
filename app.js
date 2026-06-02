@@ -481,6 +481,28 @@
     { id: cryptoId(), key: "critical", labelKey: "severity.critical", color: "#E5484D", threshold: 150 },
   ]);
 
+  // Cycled palette so newly added categories get a real color (not null) and stand out from each other.
+  const CATEGORY_PALETTE = [
+    "#F26B5E", "#3FB48A", "#9B8CFF", "#F2A93B", "#5BBDE2",
+    "#E5739A", "#7DC97B", "#C77AC7", "#FF9B5C", "#5C8AE6",
+  ];
+  function nextCategoryColor() {
+    const used = (state.categories || []).map(c => c && c.color).filter(Boolean);
+    // Pick the first palette entry not already used; otherwise wrap.
+    for (const c of CATEGORY_PALETTE) if (!used.includes(c)) return c;
+    return CATEGORY_PALETTE[(state.categories || []).length % CATEGORY_PALETTE.length];
+  }
+  // Stable color derivation for legacy categories that were created with color=null.
+  function categoryColorFor(cat) {
+    if (!cat) return null;
+    if (cat.color) return cat.color;
+    // Hash the id to a palette index so the color is stable across renders.
+    let h = 0;
+    const s = cat.id || cat.name || "";
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return CATEGORY_PALETTE[Math.abs(h) % CATEGORY_PALETTE.length];
+  }
+
   const ICON_SET = [
     // Health & body
     "💊","💉","🩺","🩹","🩸","🦷","🪥","❤️","🫀","🧠","🦴","🧬","👁️","👂","🦻","🦶","🩻",
@@ -958,7 +980,7 @@
     };
 
     $("#settingsAddCategory").onclick = () => {
-      state.categories.push({ id: cryptoId(), name: "", color: null, icon: null, muted: false });
+      state.categories.push({ id: cryptoId(), name: "", color: nextCategoryColor(), icon: null, muted: false });
       save();
       renderCategoryEditor($("#settingsCategories"));
       renderTaskCategoryOptions();
@@ -1764,8 +1786,8 @@
      RENDER
      ============================================================ */
   function bindTabs() {
-    // Coerce legacy "dismissed" tab selection to "active"
-    if (state.activeTab === "dismissed") state.activeTab = "active";
+    // Coerce legacy tab selections (the Dismissed and standalone Active tabs were removed).
+    if (state.activeTab === "dismissed" || state.activeTab === "active") state.activeTab = "upcoming";
     $$(".tab").forEach(tab => {
       tab.onclick = () => {
         state.activeTab = tab.dataset.tab;
@@ -1795,9 +1817,10 @@
     const sevList = effectiveSeverities(task);
     const maxPct = Math.max(maxThreshold(sevList), 150);
     const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
-    // Left accent uses the category color; severity is conveyed by the chip.
-    // Tasks without a category get a subtle severity-tinted left border so overdue items still pop.
-    const accent = cat?.color || (sev ? sev.color : null);
+    // Left accent uses the task's category color (with a stable palette fallback if the category
+    // has no color set yet). Tasks without any category fall back to the severity color so overdue
+    // items still pop visually.
+    const accent = (cat ? categoryColorFor(cat) : null) || (sev ? sev.color : null);
     const node = el("article", {
       class: "task" + (cat?.muted ? " is-muted" : "") + (accent ? " has-accent" : ""),
       style: accent ? { "--cat-color": accent } : {},
@@ -1805,10 +1828,35 @@
     const head = el("div", { class: "task-head" });
     if (cat?.icon) head.appendChild(el("span", { class: "task-icon", "aria-hidden": "true" }, cat.icon));
     head.appendChild(el("div", { class: "task-title" }, task.name));
+
+    // Tab-aware status badge in the upper-right corner of the card.
+    // On the "%" tab show the elapsed-percent; on every other tab show the time remaining/overdue.
+    let statusText = "";
+    let statusKind = "neutral"; // "overdue" | "due" | "soon" | "neutral"
+    if (isDone) {
+      statusText = t("status.done");
+    } else if (isDismissed) {
+      statusText = `${t("status.dismissedFor")} ${fmtHuman(task.dismissedUntil - Date.now())}`;
+    } else if (state.activeTab === "percent") {
+      statusText = `${Math.round(pct)}%`;
+      statusKind = pct >= 100 ? "overdue" : (pct >= 80 ? "due" : "soon");
+    } else if (remaining > 0) {
+      statusText = `${t("status.dueIn")} ${fmtHuman(remaining)}`;
+      statusKind = "soon";
+    } else if (Math.abs(remaining) < UNIT_MS.minute) {
+      statusText = t("status.dueNow");
+      statusKind = "due";
+    } else {
+      statusText = `${t("status.overdueBy")} ${fmtHuman(remaining)}`;
+      statusKind = "overdue";
+    }
+    head.appendChild(el("span", { class: "task-status task-status-" + statusKind }, statusText));
     node.appendChild(head);
+
     const meta = el("div", { class: "task-meta" });
     if (cat) {
-      const catChip = el("span", { class: "chip chip-cat", style: cat.color ? { "--chip-color": cat.color } : {} });
+      const chipColor = categoryColorFor(cat);
+      const catChip = el("span", { class: "chip chip-cat", style: chipColor ? { "--chip-color": chipColor } : {} });
       catChip.appendChild(el("span", { class: "dot" }));
       catChip.appendChild(document.createTextNode(categoryName(cat)));
       if (cat.muted) catChip.appendChild(el("span", { class: "mute-indicator", title: t("category.muted") }, "🔕"));
@@ -1826,19 +1874,6 @@
       meta.appendChild(el("span", { class: "chip chip-tiny", title: t("task.customSeverity") }, "⚙"));
     }
     meta.appendChild(el("span", {}, task.recurring ? t("status.recurring") : t("status.oneTime")));
-    meta.appendChild(el("span", {}, "·"));
-    if (isDone) {
-      meta.appendChild(el("span", {}, t("status.done")));
-    } else if (isDismissed) {
-      const remainingDismiss = task.dismissedUntil - Date.now();
-      meta.appendChild(el("span", {}, `${t("status.dismissedFor")} ${fmtHuman(remainingDismiss)}`));
-    } else if (remaining > 0) {
-      meta.appendChild(el("span", {}, `${t("status.dueIn")} ${fmtHuman(remaining)}`));
-    } else if (Math.abs(remaining) < UNIT_MS.minute) {
-      meta.appendChild(el("span", {}, t("status.dueNow")));
-    } else {
-      meta.appendChild(el("span", {}, `${t("status.overdueBy")} ${fmtHuman(remaining)}`));
-    }
     node.appendChild(meta);
     if (task.notes) node.appendChild(el("div", { class: "task-notes" }, task.notes));
     const bar = el("div", { class: "task-progress" }, el("span", { style: { width: widthPct + "%" } }));
@@ -1921,29 +1956,17 @@
     const items = buildItems(now);
     // Dismissed tasks are hidden from all live views; they appear in History where they can be undone.
     const live = items.filter(i => !i.isDone && !i.isDismissed);
-    // "Active" = strictly overdue (pct >= 100). Reminder-level (e.g. 80%) tasks live in Soon / % until they hit 100.
-    let active = live.filter(i => i.pct >= 100);
-    let upcoming = live.filter(i => i.pct < 100);
+    // The badge still tracks how many tasks are strictly overdue (>=100%) — shown on the Soon tab.
+    const overdueCount = live.filter(i => i.pct >= 100).length;
+    updateActiveBadge(overdueCount);
+    // Sort all live tasks by remaining time (most overdue first, then soonest due).
+    const soon = [...live].sort((a, b) => a.remaining - b.remaining);
+    // Notify for any overdue task that hit a new severity threshold.
+    soon.filter(i => i.sev).forEach(i => maybeNotify(i.task, i.sev));
 
-    active.sort((a, b) => {
-      const ta = a.sev?.threshold || 0;
-      const tb = b.sev?.threshold || 0;
-      if (tb !== ta) return tb - ta;
-      return b.pct - a.pct;
-    });
-    upcoming.sort((a, b) => a.remaining - b.remaining);
-
-    // Update the Active tab badge with the count of overdue tasks.
-    updateActiveBadge(active.length);
-
-    active.forEach(i => maybeNotify(i.task, i.sev));
-
-    if (tab === "active") {
-      if (active.length === 0) return showEmpty("empty.activeTitle", "empty.activeBody");
-      hideEmpty(); renderSection(container, t("tab.active"), active);
-    } else if (tab === "upcoming") {
-      if (upcoming.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
-      hideEmpty(); renderSection(container, t("tab.upcoming"), upcoming);
+    if (tab === "upcoming") {
+      if (soon.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
+      hideEmpty(); renderSection(container, t("tab.upcoming"), soon);
     } else if (tab === "percent") {
       // Sort by elapsed-percentage descending — closer to deadline relative to its own cycle wins.
       const sorted = [...live].sort((a, b) => b.pct - a.pct);
