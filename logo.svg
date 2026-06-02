@@ -5,5 +5,17 @@
       <stop offset="100%" stop-color="#F26B5E"/>
     </linearGradient>
   </defs>
-  <path d="M16 10 H48 L32 32 L48 54 H16 L32 32 Z" fill="url(#tlaGrad)"/>
+  <!--
+    Soft hourglass inside the 80% maskable safe zone (corner distance ~22 < 25.6).
+    Neck has a 6x4 px strip so the two halves don't pinch to a single point.
+    Stroke matches the fill with rounded line joins for a softer, less sharp silhouette.
+  -->
+  <path
+    d="M 20 16 H 44 L 35 30 V 34 L 44 48 H 20 L 29 34 V 30 Z"
+    fill="url(#tlaGrad)"
+    stroke="url(#tlaGrad)"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
 </svg>
