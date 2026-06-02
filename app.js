@@ -1730,6 +1730,12 @@
       badge.hidden = n === 0;
     }
   }
+  function updateActiveBadge(n) {
+    const badge = $("#activeBadge");
+    if (!badge) return;
+    badge.textContent = n > 0 ? String(n) : "";
+    badge.hidden = n === 0;
+  }
   function bindFilter() {
     $("#filterBtn").onclick = (e) => {
       e.stopPropagation();
@@ -1789,9 +1795,13 @@
     const sevList = effectiveSeverities(task);
     const maxPct = Math.max(maxThreshold(sevList), 150);
     const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
-    const stripeColor = sev ? sev.color : (cat?.color || "var(--text-faint)");
-    const node = el("article", { class: "task" + (cat?.muted ? " is-muted" : ""), style: { "--cat-color": stripeColor } });
-    node.appendChild(el("div", { class: "task-stripe" }));
+    // Left accent uses the category color; severity is conveyed by the chip.
+    // Tasks without a category get a subtle severity-tinted left border so overdue items still pop.
+    const accent = cat?.color || (sev ? sev.color : null);
+    const node = el("article", {
+      class: "task" + (cat?.muted ? " is-muted" : "") + (accent ? " has-accent" : ""),
+      style: accent ? { "--cat-color": accent } : {},
+    });
     const head = el("div", { class: "task-head" });
     if (cat?.icon) head.appendChild(el("span", { class: "task-icon", "aria-hidden": "true" }, cat.icon));
     head.appendChild(el("div", { class: "task-title" }, task.name));
@@ -1911,8 +1921,9 @@
     const items = buildItems(now);
     // Dismissed tasks are hidden from all live views; they appear in History where they can be undone.
     const live = items.filter(i => !i.isDone && !i.isDismissed);
-    let active = live.filter(i => i.sev);
-    let upcoming = live.filter(i => !i.sev);
+    // "Active" = strictly overdue (pct >= 100). Reminder-level (e.g. 80%) tasks live in Soon / % until they hit 100.
+    let active = live.filter(i => i.pct >= 100);
+    let upcoming = live.filter(i => i.pct < 100);
 
     active.sort((a, b) => {
       const ta = a.sev?.threshold || 0;
@@ -1921,6 +1932,9 @@
       return b.pct - a.pct;
     });
     upcoming.sort((a, b) => a.remaining - b.remaining);
+
+    // Update the Active tab badge with the count of overdue tasks.
+    updateActiveBadge(active.length);
 
     active.forEach(i => maybeNotify(i.task, i.sev));
 
