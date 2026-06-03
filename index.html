@@ -31,6 +31,14 @@
     </div>
   </header>
 
+  <div class="search-bar">
+    <svg class="search-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 1 0 5.3 14.05l4.6 4.6 1.4-1.4-4.6-4.6A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></svg>
+    <input type="search" id="searchInput" autocomplete="off" placeholder="Search…" data-i18n-attr="placeholder" data-i18n="search.placeholder" />
+    <button type="button" id="searchClear" class="search-clear" hidden aria-label="Clear search">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M18.3 5.71 12 12.01l6.3 6.29-1.41 1.41L10.59 13.4 4.29 19.71l-1.41-1.41 6.3-6.29-6.3-6.3L4.29 4.3l6.3 6.29 6.3-6.29z"/></svg>
+    </button>
+  </div>
+
   <div id="filterPanel" class="filter-panel" hidden>
     <div class="filter-head">
       <strong data-i18n="filter.title">Filter by category</strong>
@@ -42,7 +50,7 @@
   <main class="main">
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-tab="upcoming" role="tab"><span data-i18n="tab.upcoming">Soon</span><span id="activeBadge" class="tab-badge" hidden></span></button>
-      <button class="tab" data-tab="percent" role="tab" data-i18n="tab.percent">%</button>
+      <button class="tab" data-tab="percent" role="tab" data-i18n="tab.percent">Priority</button>
       <button class="tab" data-tab="all" role="tab" data-i18n="tab.all">All</button>
       <button class="tab" data-tab="history" role="tab" data-i18n="tab.history">History</button>
     </nav>

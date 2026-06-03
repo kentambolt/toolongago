@@ -23,7 +23,7 @@
       "tab.active": "Active",
       "tab.upcoming": "Soon",
       "tab.dismissed": "Dismissed",
-      "tab.percent": "%",
+      "tab.percent": "Priority",
       "empty.percentTitle": "Nothing to track",
       "empty.percentBody": "When you have tasks running, they'll line up here by how close they are to their deadline.",
       "tab.all": "All",
@@ -135,10 +135,11 @@
       "action.edit": "Edit",
       "action.undismiss": "Undismiss",
       "action.undo": "Undo",
-      // filter
+      // filter / search
       "filter.title": "Filter by category",
       "filter.uncategorized": "Uncategorized",
       "filter.clear": "Clear filter",
+      "search.placeholder": "Search tasks…",
       // history
       "tab.history": "History",
       "history.didIt": "Marked done",
@@ -249,7 +250,7 @@
       "tab.active": "Aktive",
       "tab.upcoming": "Snart",
       "tab.dismissed": "Udskudte",
-      "tab.percent": "%",
+      "tab.percent": "Prioritet",
       "empty.percentTitle": "Intet at følge",
       "empty.percentBody": "Når du har kørende opgaver, vises de her sorteret efter hvor tæt de er på deres frist.",
       "tab.all": "Alle",
@@ -355,6 +356,7 @@
       "filter.title": "Filtrer efter kategori",
       "filter.uncategorized": "Uden kategori",
       "filter.clear": "Ryd filter",
+      "search.placeholder": "Søg opgaver…",
       "tab.history": "Historik",
       "history.didIt": "Markeret færdig",
       "history.dismissedIt": "Udskudt",
@@ -636,7 +638,14 @@
       if (k === "class") n.className = attrs[k];
       else if (k === "html") n.innerHTML = attrs[k];
       else if (k.startsWith("on") && typeof attrs[k] === "function") n.addEventListener(k.slice(2), attrs[k]);
-      else if (k === "style" && typeof attrs[k] === "object") Object.assign(n.style, attrs[k]);
+      else if (k === "style" && typeof attrs[k] === "object") {
+        // CSS custom properties (e.g. "--cat-color") need setProperty; the camelCase Object.assign
+        // path silently drops them on most browsers.
+        for (const sk in attrs[k]) {
+          if (sk.startsWith("--")) n.style.setProperty(sk, attrs[k][sk]);
+          else n.style[sk] = attrs[k][sk];
+        }
+      }
       else if (attrs[k] === true) n.setAttribute(k, "");
       else if (attrs[k] !== false && attrs[k] != null) n.setAttribute(k, attrs[k]);
     }
@@ -1682,17 +1691,43 @@
      ============================================================ */
   function filteredTasks() {
     const f = state.filter || { categoryIds: [] };
-    if (!f.categoryIds || f.categoryIds.length === 0) return state.tasks;
-    const set = new Set(f.categoryIds);
+    const q = (searchQuery || "").trim().toLowerCase();
+    const hasCatFilter = f.categoryIds && f.categoryIds.length > 0;
+    const set = hasCatFilter ? new Set(f.categoryIds) : null;
+
     return state.tasks.filter(tk => {
-      if (set.has("__none__")) {
-        if (!tk.categoryId) return true;
+      // Category filter
+      if (hasCatFilter) {
+        const includeNone = set.has("__none__");
+        const matchByCat = tk.categoryId && set.has(tk.categoryId);
+        const matchByNone = includeNone && !tk.categoryId;
+        if (!matchByCat && !matchByNone) return false;
       }
-      return tk.categoryId && set.has(tk.categoryId);
+      // Text search across name + notes
+      if (q) {
+        const hay = ((tk.name || "") + " " + (tk.notes || "")).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
     });
   }
   function isFiltered() {
     return (state.filter?.categoryIds || []).length > 0;
+  }
+
+  // In-memory only — search resets on page reload.
+  let searchQuery = "";
+  function bindSearch() {
+    const input = $("#searchInput");
+    const clearBtn = $("#searchClear");
+    if (!input) return;
+    const onChange = () => {
+      searchQuery = input.value;
+      clearBtn.hidden = !input.value;
+      render();
+    };
+    input.addEventListener("input", onChange);
+    clearBtn.onclick = () => { input.value = ""; onChange(); input.focus(); };
   }
   function renderFilterPanel() {
     const panel = $("#filterPanel");
@@ -1838,7 +1873,10 @@
     } else if (isDismissed) {
       statusText = `${t("status.dismissedFor")} ${fmtHuman(task.dismissedUntil - Date.now())}`;
     } else if (state.activeTab === "percent") {
-      statusText = `${Math.round(pct)}%`;
+      // Show the same fraction the progress bar is filled to (0–100%).
+      // widthPct already uses the same formula and is capped at 100.
+      const shown = Math.round(widthPct);
+      statusText = `${shown}%`;
       statusKind = pct >= 100 ? "overdue" : (pct >= 80 ? "due" : "soon");
     } else if (remaining > 0) {
       statusText = `${t("status.dueIn")} ${fmtHuman(remaining)}`;
@@ -1968,8 +2006,14 @@
       if (soon.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
       hideEmpty(); renderSection(container, t("tab.upcoming"), soon);
     } else if (tab === "percent") {
-      // Sort by elapsed-percentage descending — closer to deadline relative to its own cycle wins.
-      const sorted = [...live].sort((a, b) => b.pct - a.pct);
+      // Sort by the same fraction the progress bar fills (capped at 100%) — most urgent first,
+      // relative to each task's own cycle/severity scale.
+      const fracOf = (it) => {
+        const sevList = effectiveSeverities(it.task);
+        const maxPct = Math.max(maxThreshold(sevList), 150);
+        return Math.min(100, (it.pct / maxPct) * 100);
+      };
+      const sorted = [...live].sort((a, b) => fracOf(b) - fracOf(a));
       if (sorted.length === 0) return showEmpty("empty.percentTitle", "empty.percentBody");
       hideEmpty(); renderSection(container, t("tab.percent"), sorted);
     } else {
@@ -2168,6 +2212,7 @@
     bindTaskModal();
     bindTabs();
     bindFilter();
+    bindSearch();
     registerServiceWorker();
     startup();
     setInterval(() => { if (!app.hidden) render(); }, 30 * 1000);
