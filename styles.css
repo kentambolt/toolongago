@@ -239,14 +239,22 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
-/* Extra emphasis: a subtle tint on the card so the category is felt, not just glimpsed. */
+/* Subtle left-side wash in the category color. Intensity is driven by --wash-strength
+   which the JS sets based on the task's active severity rank:
+     no severity   → 0   (no wash, just the colored border)
+     Reminder      → ~0.08
+     Warning       → ~0.16
+     Critical+     → ~0.26
+   This way the visual emphasis tracks how urgent the task actually is. */
 .task.has-accent::before {
   content: "";
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 24px;
+  width: 28px;
   pointer-events: none;
-  background: linear-gradient(to right, color-mix(in srgb, var(--cat-color) 14%, transparent), transparent);
+  opacity: var(--wash-strength, 0);
+  background: linear-gradient(to right, var(--cat-color), transparent);
+  transition: opacity .25s ease;
 }
 /* Legacy element kept for backward compatibility; hidden if any remain. */
 .task-stripe { display: none; }
@@ -917,6 +925,22 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   flex-shrink: 0;
 }
 .category-head .del:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.category-caprow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-left: 4px;
+}
+.category-cap-select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
 .category-actions {
   display: flex;
   align-items: center;

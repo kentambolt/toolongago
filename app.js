@@ -120,6 +120,8 @@
       "category.icon": "Icon",
       "category.color": "Color",
       "category.name": "Name",
+      "category.maxSeverity": "Cap severity at:",
+      "category.maxSeverityNone": "No cap (use defaults)",
       // status / labels
       "status.dueIn": "due in",
       "status.overdueBy": "overdue by",
@@ -340,6 +342,8 @@
       "category.icon": "Ikon",
       "category.color": "Farve",
       "category.name": "Navn",
+      "category.maxSeverity": "Maks. alvor:",
+      "category.maxSeverityNone": "Ingen grænse (brug standard)",
       "status.dueIn": "forfalden om",
       "status.overdueBy": "forsinket med",
       "status.dueNow": "forfalden nu",
@@ -919,6 +923,26 @@
       head.appendChild(del);
 
       card.appendChild(head);
+
+      // Severity cap row: lets the user keep certain categories from ever reaching higher severities.
+      // e.g. "Windows": cap at Warning — so Medicine at Critical always outranks Windows.
+      const capRow = el("div", { class: "category-caprow" });
+      capRow.appendChild(el("label", { class: "muted small", for: "cap-" + cat.id }, t("category.maxSeverity")));
+      const capSel = el("select", { id: "cap-" + cat.id, class: "category-cap-select" });
+      capSel.appendChild(el("option", { value: "" }, t("category.maxSeverityNone")));
+      const sortedSev = [...state.severities].sort((a, b) => a.threshold - b.threshold);
+      sortedSev.forEach(sev => {
+        const opt = el("option", { value: sev.key || sev.labelKey || "" }, severityLabel(sev));
+        capSel.appendChild(opt);
+      });
+      capSel.value = cat.maxSeverityKey || "";
+      capSel.onchange = () => {
+        cat.maxSeverityKey = capSel.value || null;
+        save();
+        render();
+      };
+      capRow.appendChild(capSel);
+      card.appendChild(capRow);
 
       // Action row
       const actions = el("div", { class: "category-actions" });
@@ -1856,9 +1880,27 @@
     // has no color set yet). Tasks without any category fall back to the severity color so overdue
     // items still pop visually.
     const accent = (cat ? categoryColorFor(cat) : null) || (sev ? sev.color : null);
+    // The category-color "wash" on the left side fades in with severity:
+    //   no severity active → 0   (calm card)
+    //   Reminder           → 8%
+    //   Warning            → 16%
+    //   Critical+          → 26%
+    // This ties visual urgency to the actual severity rank — a freshly-done task looks calm,
+    // an overdue medicine task looks urgent.
+    let washStrength = 0;
+    if (sev) {
+      const ranked = [...effectiveSeverities(task)].sort((a, b) => a.threshold - b.threshold);
+      const idx = ranked.findIndex(s => s.id === sev.id);
+      const total = Math.max(1, ranked.length);
+      // Map rank index (0..n-1) to roughly 8% → 26% intensity.
+      washStrength = 0.08 + (idx / Math.max(1, total - 1)) * 0.18;
+    }
+    const styleObj = {};
+    if (accent) styleObj["--cat-color"] = accent;
+    styleObj["--wash-strength"] = washStrength.toFixed(3);
     const node = el("article", {
-      class: "task" + (cat?.muted ? " is-muted" : "") + (accent ? " has-accent" : ""),
-      style: accent ? { "--cat-color": accent } : {},
+      class: "task" + (cat?.muted ? " is-muted" : "") + (accent ? " has-accent" : "") + (sev ? " is-urgent" : ""),
+      style: styleObj,
     });
     const head = el("div", { class: "task-head" });
     if (cat?.icon) head.appendChild(el("span", { class: "task-icon", "aria-hidden": "true" }, cat.icon));
@@ -1905,9 +1947,9 @@
         el("span", { class: "dot" }),
         severityLabel(sev)
       ));
-    } else if (!isDone && !isDismissed) {
-      meta.appendChild(el("span", { class: "chip" }, t("status.upcoming")));
     }
+    // No "Upcoming" chip when there's no active severity — the corner status badge already
+    // communicates "due in X" and a meaningless "Upcoming" label was just noise.
     if (task.severities) {
       meta.appendChild(el("span", { class: "chip chip-tiny", title: t("task.customSeverity") }, "⚙"));
     }
@@ -1998,7 +2040,17 @@
     const overdueCount = live.filter(i => i.pct >= 100).length;
     updateActiveBadge(overdueCount);
     // Sort all live tasks by remaining time (most overdue first, then soonest due).
-    const soon = [...live].sort((a, b) => a.remaining - b.remaining);
+    // Sort: tasks at higher severity rank come first (Critical > Warning > Reminder > none).
+    // Within the same severity rank, the most overdue (or soonest due) comes first.
+    // This makes "Medicine at Critical" always sit above "Windows at Warning", regardless of
+    // which is more time-overdue. Categories that cap their severity (e.g. Windows can only
+    // reach Warning) naturally fall below higher-severity tasks.
+    const soon = [...live].sort((a, b) => {
+      const ra = a.sev?.threshold ?? -1;
+      const rb = b.sev?.threshold ?? -1;
+      if (rb !== ra) return rb - ra;
+      return a.remaining - b.remaining;
+    });
     // Notify for any overdue task that hit a new severity threshold.
     soon.filter(i => i.sev).forEach(i => maybeNotify(i.task, i.sev));
 
@@ -2083,7 +2135,17 @@
      EFFECTIVE SEVERITY (per-task override aware)
      ============================================================ */
   function effectiveSeverities(task) {
-    return (task && task.severities && task.severities.length) ? task.severities : state.severities;
+    // 1) Per-task override wins
+    let list = (task && task.severities && task.severities.length) ? task.severities : state.severities;
+    // 2) Category may cap severity — drop any severity ranked above the cap.
+    //    A category with maxSeverityKey === "warning" means tasks in this category will never reach Critical.
+    const cat = task && task.categoryId ? state.categories.find(c => c.id === task.categoryId) : null;
+    if (cat && cat.maxSeverityKey) {
+      const sorted = [...list].sort((a, b) => a.threshold - b.threshold);
+      const capIdx = sorted.findIndex(s => s.key === cat.maxSeverityKey || s.labelKey === cat.maxSeverityKey);
+      if (capIdx >= 0) list = sorted.slice(0, capIdx + 1);
+    }
+    return list;
   }
 
   /* ============================================================
