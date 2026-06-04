@@ -562,44 +562,108 @@
   function intervalMs(t) { return (t.amount || 0) * (UNIT_MS[t.unit] || UNIT_MS.day); }
 
   // Returns the next-due timestamp for a task, supporting interval and calendar schedules.
+  //
+  // For calendar schedules (daily / weekly / monthly), the user's "Done" click may happen a bit
+  // before or after the actual scheduled time. We infer which scheduled occurrence the click
+  // belongs to by snapping lastDoneAt to the *closest* scheduled occurrence (past OR future),
+  // then advance one cycle to get next-due. Worked examples for a daily-at-20:00 task:
+  //
+  //   • Done at 19:00 today  → closest slot = today 20:00  → next due = tomorrow 20:00
+  //   • Done at 21:00 today  → closest slot = today 20:00  → next due = tomorrow 20:00
+  //   • Done at 19:00 tomorrow (forgot today)
+  //                          → closest slot = tomorrow 20:00 → next due = day-after 20:00
+  //
+  // Fresh tasks (no lastDoneAt) still return the next upcoming occurrence after createdAt.
   function dueAt(task) {
     const type = task.scheduleType || "interval";
-    const base = task.lastDoneAt || task.createdAt;
     if (type === "interval") {
+      const base = task.lastDoneAt || task.createdAt;
       return base + intervalMs(task);
     }
+    const anchor = task.lastDoneAt
+      ? closestScheduledTrigger(task, task.lastDoneAt)
+      : ((task.createdAt || Date.now()) - 1);
+    return nextScheduledTriggerAfter(task, anchor);
+  }
+
+  // Returns the scheduled-trigger timestamp closest in absolute time to `atTime` (past or future).
+  function closestScheduledTrigger(task, atTime) {
+    const type = task.scheduleType;
+    const [hh, mm] = (task.scheduleTime || "09:00").split(":").map(Number);
+    const DAY = 24 * 60 * 60 * 1000;
+    if (type === "daily") {
+      const d = new Date(atTime);
+      d.setHours(hh, mm, 0, 0);
+      const same = d.getTime();
+      const cands = [same - DAY, same, same + DAY];
+      return cands.reduce((best, c) => Math.abs(c - atTime) < Math.abs(best - atTime) ? c : best);
+    }
+    if (type === "weekly") {
+      const days = (task.scheduleDays && task.scheduleDays.length) ? task.scheduleDays : [1, 2, 3, 4, 5, 6, 0];
+      let best = null;
+      for (let offset = -7; offset <= 7; offset++) {
+        const d = new Date(atTime);
+        d.setDate(d.getDate() + offset);
+        d.setHours(hh, mm, 0, 0);
+        if (days.includes(d.getDay())) {
+          if (best == null || Math.abs(d.getTime() - atTime) < Math.abs(best - atTime)) {
+            best = d.getTime();
+          }
+        }
+      }
+      return best != null ? best : atTime;
+    }
+    if (type === "monthly") {
+      const day = Math.max(1, Math.min(31, task.scheduleDay || 1));
+      let best = null;
+      for (const off of [-1, 0, 1]) {
+        const d = new Date(atTime);
+        d.setMonth(d.getMonth() + off);
+        d.setDate(day);
+        d.setHours(hh, mm, 0, 0);
+        if (best == null || Math.abs(d.getTime() - atTime) < Math.abs(best - atTime)) {
+          best = d.getTime();
+        }
+      }
+      return best;
+    }
+    return atTime;
+  }
+
+  // Returns the first scheduled-trigger timestamp strictly after `afterTime`.
+  function nextScheduledTriggerAfter(task, afterTime) {
+    const type = task.scheduleType;
     const [hh, mm] = (task.scheduleTime || "09:00").split(":").map(Number);
     if (type === "daily") {
-      const d = new Date(base);
+      const d = new Date(afterTime);
       d.setHours(hh, mm, 0, 0);
-      if (d.getTime() <= base) d.setDate(d.getDate() + 1);
+      while (d.getTime() <= afterTime) d.setDate(d.getDate() + 1);
       return d.getTime();
     }
     if (type === "weekly") {
       const days = (task.scheduleDays && task.scheduleDays.length) ? task.scheduleDays : [1, 2, 3, 4, 5, 6, 0];
-      const d = new Date(base);
+      const d = new Date(afterTime);
       d.setHours(hh, mm, 0, 0);
-      // Walk forward day by day; advance at least once if base already passed today's time
-      if (d.getTime() <= base) d.setDate(d.getDate() + 1);
+      if (d.getTime() <= afterTime) d.setDate(d.getDate() + 1);
       else if (!days.includes(d.getDay())) d.setDate(d.getDate() + 1);
       for (let i = 0; i < 8; i++) {
-        if (days.includes(d.getDay()) && d.getTime() > base) return d.getTime();
+        if (days.includes(d.getDay()) && d.getTime() > afterTime) return d.getTime();
         d.setDate(d.getDate() + 1);
       }
       return d.getTime();
     }
     if (type === "monthly") {
       const day = Math.max(1, Math.min(31, task.scheduleDay || 1));
-      const d = new Date(base);
+      const d = new Date(afterTime);
       d.setHours(hh, mm, 0, 0);
       d.setDate(day);
-      while (d.getTime() <= base) {
+      while (d.getTime() <= afterTime) {
         d.setMonth(d.getMonth() + 1);
         d.setDate(day);
       }
       return d.getTime();
     }
-    return base + intervalMs(task);
+    return afterTime + 24 * 60 * 60 * 1000;
   }
 
   function elapsedPct(task, now) {
