@@ -228,6 +228,7 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   gap: 10px;
   position: relative;
   overflow: hidden;
+  isolation: isolate; /* contain the wash pseudo-elements below content */
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
 }
 .task:hover { box-shadow: var(--shadow-soft); }
@@ -239,22 +240,51 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
-/* Subtle left-side wash in the category color. Intensity is driven by --wash-strength
-   which the JS sets based on the task's active severity rank:
-     no severity   → 0   (no wash, just the colored border)
+/* Full-card category wash. Intensity (--wash-strength) is set by JS:
+     no severity   → 0   (no wash at all, just the colored border)
      Reminder      → ~0.08
      Warning       → ~0.16
      Critical+     → ~0.26
-   This way the visual emphasis tracks how urgent the task actually is. */
+   The category wash multiplier from settings (washStrength slider) is already folded into
+   this value, so a category set to 50% wash will show half this intensity.
+
+   The wash itself is layered:
+     1) A primary radial bloom from the top-left (anchor side) using the category color
+     2) A softer echo from the bottom-right for visual balance
+     3) A very subtle diagonal hairline texture that gives a sense of material/depth
+   Together they fill the whole card without feeling flat. */
 .task.has-accent::before {
   content: "";
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 28px;
+  inset: 0;
+  z-index: -1;          /* sit behind the card content */
   pointer-events: none;
   opacity: var(--wash-strength, 0);
-  background: linear-gradient(to right, var(--cat-color), transparent);
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--cat-color), transparent 65%),
+    radial-gradient(100% 100% at 100% 100%, color-mix(in srgb, var(--cat-color) 55%, transparent), transparent 55%);
   transition: opacity .25s ease;
+}
+/* Diagonal hairline texture overlay — adds material/depth on top of the wash. */
+.task.has-accent::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;          /* sit behind the card content, above the ::before wash */
+  pointer-events: none;
+  opacity: calc(var(--wash-strength, 0) * 0.9);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 11px,
+    color-mix(in srgb, var(--cat-color) 22%, transparent) 11px 12px
+  );
+  mix-blend-mode: overlay;
+  transition: opacity .25s ease;
+}
+/* Light themes look better with multiply blending so the texture darkens rather than lightens. */
+[data-theme="light"] .task.has-accent::after { mix-blend-mode: multiply; }
+@media (prefers-color-scheme: light) {
+  [data-theme="auto"] .task.has-accent::after { mix-blend-mode: multiply; }
 }
 /* Legacy element kept for backward compatibility; hidden if any remain. */
 .task-stripe { display: none; }
@@ -940,6 +970,57 @@ input, select, textarea { font-family: inherit; font-size: 16px; color: var(--te
   padding: 6px 8px;
   font-size: 13px;
   color: var(--text);
+}
+.category-washrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-left: 4px;
+}
+.category-wash-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 18px;
+  cursor: pointer;
+}
+.category-wash-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+.category-wash-slider::-moz-range-track {
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+.category-wash-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--brand-2);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.category-wash-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--brand-2);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+.wash-val {
+  min-width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .category-actions {
   display: flex;

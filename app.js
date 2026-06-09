@@ -122,6 +122,7 @@
       "category.name": "Name",
       "category.maxSeverity": "Cap severity at:",
       "category.maxSeverityNone": "No cap (use defaults)",
+      "category.washStrength": "Wash intensity:",
       // status / labels
       "status.dueIn": "due in",
       "status.overdueBy": "overdue by",
@@ -344,6 +345,7 @@
       "category.name": "Navn",
       "category.maxSeverity": "Maks. alvor:",
       "category.maxSeverityNone": "Ingen grænse (brug standard)",
+      "category.washStrength": "Wash-intensitet:",
       "status.dueIn": "forfalden om",
       "status.overdueBy": "forsinket med",
       "status.dueNow": "forfalden nu",
@@ -1007,6 +1009,34 @@
       };
       capRow.appendChild(capSel);
       card.appendChild(capRow);
+
+      // Wash intensity slider — lets the user dial down (or up) how strongly tasks in this
+      // category visually stand out. 0 = no card wash at all. 1 = default. Severity still
+      // determines whether *any* wash is shown.
+      const washRow = el("div", { class: "category-washrow" });
+      washRow.appendChild(el("label", { class: "muted small", for: "wash-" + cat.id }, t("category.washStrength")));
+      const currWash = (typeof cat.washStrength === "number") ? cat.washStrength : 1;
+      const washSlider = el("input", {
+        id: "wash-" + cat.id,
+        type: "range",
+        min: "0",
+        max: "150",
+        step: "5",
+        value: String(Math.round(currWash * 100)),
+        class: "category-wash-slider",
+      });
+      const washVal = el("span", { class: "muted small wash-val" }, Math.round(currWash * 100) + "%");
+      washSlider.oninput = () => {
+        const v = parseInt(washSlider.value, 10) / 100;
+        cat.washStrength = v;
+        washVal.textContent = Math.round(v * 100) + "%";
+        // Preview live without re-rendering the editor (which would steal focus from the slider).
+        save();
+        render();
+      };
+      washRow.appendChild(washSlider);
+      washRow.appendChild(washVal);
+      card.appendChild(washRow);
 
       // Action row
       const actions = el("div", { class: "category-actions" });
@@ -1959,9 +1989,12 @@
       // Map rank index (0..n-1) to roughly 8% → 26% intensity.
       washStrength = 0.08 + (idx / Math.max(1, total - 1)) * 0.18;
     }
+    // Per-category multiplier — lets the user dial up or down how loud each category looks.
+    const catMult = (cat && typeof cat.washStrength === "number") ? cat.washStrength : 1;
+    const finalWash = Math.max(0, washStrength * catMult);
     const styleObj = {};
     if (accent) styleObj["--cat-color"] = accent;
-    styleObj["--wash-strength"] = washStrength.toFixed(3);
+    styleObj["--wash-strength"] = finalWash.toFixed(3);
     const node = el("article", {
       class: "task" + (cat?.muted ? " is-muted" : "") + (accent ? " has-accent" : "") + (sev ? " is-urgent" : ""),
       style: styleObj,
