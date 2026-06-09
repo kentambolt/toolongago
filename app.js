@@ -1967,9 +1967,9 @@
   }
   function renderTask(item) {
     const { task, isDone, pct, sev, remaining, isDismissed, cat } = item;
-    const sevList = effectiveSeverities(task);
-    const maxPct = Math.max(maxThreshold(sevList), 150);
-    const widthPct = Math.max(0, Math.min(100, (pct / maxPct) * 100));
+    // Progress bar fills directly with the elapsed-percent: 0% at lastDone, 100% at exactly due,
+    // stays at 100% once overdue. Severity colors and the wash effect convey "how overdue".
+    const widthPct = Math.max(0, Math.min(100, pct));
     // Left accent uses the task's category color (with a stable palette fallback if the category
     // has no color set yet). Tasks without any category fall back to the severity color so overdue
     // items still pop visually.
@@ -2155,14 +2155,9 @@
       if (soon.length === 0) return showEmpty("empty.upcomingTitle", "empty.upcomingBody");
       hideEmpty(); renderSection(container, t("tab.upcoming"), soon);
     } else if (tab === "percent") {
-      // Sort by the same fraction the progress bar fills (capped at 100%) — most urgent first,
-      // relative to each task's own cycle/severity scale.
-      const fracOf = (it) => {
-        const sevList = effectiveSeverities(it.task);
-        const maxPct = Math.max(maxThreshold(sevList), 150);
-        return Math.min(100, (it.pct / maxPct) * 100);
-      };
-      const sorted = [...live].sort((a, b) => fracOf(b) - fracOf(a));
+      // Sort by raw elapsed-percent descending. Tasks past due (pct > 100) all display 100% in the
+      // badge but still sort among themselves so a 200%-overdue task ranks above a 120%-overdue one.
+      const sorted = [...live].sort((a, b) => b.pct - a.pct);
       if (sorted.length === 0) return showEmpty("empty.percentTitle", "empty.percentBody");
       hideEmpty(); renderSection(container, t("tab.percent"), sorted);
     } else {
